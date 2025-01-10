@@ -26,87 +26,59 @@ app.get('/', (req, res) => {
 wss.on('connection', (ws, req) => {
   // Parsear el primer mensaje WebSocket
   ws.on('message', (message) => {
-    console.log('Mensaje detallado:', util.inspect(message, { depth: null }));
-    console.log('----------------->', Object.prototype.toString.call(message));
-    console.log('Mensaje recibido:', message);
-    console.log('Tipo de mensaje:', typeof message);
-    if (Buffer.isBuffer(message)) {
-      console.log('Bytes iniciales del Buffer:', message.slice(0, 10)); // Muestra los primeros 10 bytes
-    }
-    if (message instanceof ArrayBuffer) {
-      console.log('Es un ArrayBuffer.');
-    } else if (ArrayBuffer.isView(message)) {
-      console.log('Es un TypedArray (por ejemplo, Uint8Array).');
-    }
-    if (Buffer.isBuffer(message)) {
-      console.log('Es un Buffer (datos binarios).');
-    } else {
-      console.log('No es un Buffer.');
-    }
-    if (message instanceof String) {
-      console.log('Es un String.');
-    } else if (message instanceof Buffer) {
-      console.log('Es un Buffer.');
-    } else {
-      console.log('Tipo desconocido.');
-    }
-    try {
+    if (isText(message)) {
       const messageJson = JSON.parse(message);
-      if (messageJson.type) {
-        console.log('Mensaje JSON RECIBIDO:', messageJson);
-        if (messageJson.type === 'open') {
-          // Enviar respuesta de "opened"
-          const openResponse = {
-            version: "2",
-            type: "opened",
-            seq: messageJson.seq,
-            clientseq: 1,
-            id: messageJson.id,
-            parameters: {
-              startPaused: false,
-              media: [
-                {
-                  type: "audio",
-                  format: "PCMU",
-                  channels: ["external"],
-                  rate: 8000,
-                },
-              ],
-            },
-          }
-          ws.send(JSON.stringify(openResponse));
-          console.log('Respuesta de "opened" enviada');
-        };
-        // Responder a error de "Maximum size of entity for transcription data exceeded"
-        if (messageJson.type === 'error' && messageJson.parameters.code === 413) {
-          const errorResponse = {
-            version: "2",
-            type: "closed",
-            seq: messageJson.seq,
-            clientseq: 1,
-            id: messageJson.id,
-            parameters: {},
-          };
-          ws.send(JSON.stringify(errorResponse));
+      console.log('Mensaje JSON RECIBIDO:', messageJson);
+      if (messageJson.type === 'open') {
+        // Enviar respuesta de "opened"
+        const openResponse = {
+          version: "2",
+          type: "opened",
+          seq: messageJson.seq,
+          clientseq: 1,
+          id: messageJson.id,
+          parameters: {
+            startPaused: false,
+            media: [
+              {
+                type: "audio",
+                format: "PCMU",
+                channels: ["external"],
+                rate: 8000,
+              },
+            ],
+          },
         }
-        // Responder al cierre del WebSocket
-        ws.on('close', () => {
-          console.log('Conexión WebSocket cerrada');
+        ws.send(JSON.stringify(openResponse));
+        console.log('Respuesta de "opened" enviada');
+      };
+      // Responder a error de "Maximum size of entity for transcription data exceeded"
+      if (messageJson.type === 'error' && messageJson.parameters.code === 413) {
+        const errorResponse = {
+          version: "2",
+          type: "closed",
+          seq: messageJson.seq,
+          clientseq: 1,
+          id: messageJson.id,
+          parameters: {},
+        };
+        ws.send(JSON.stringify(errorResponse));
+      }
+      // Responder al cierre del WebSocket
+      ws.on('close', () => {
+        console.log('Conexión WebSocket cerrada');
+        ServerFiles()
+      });
+    }else{
+      //Escuchar audio binario y guardarlo en archivo
+      if (Buffer.isBuffer(message)) {
+        const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
+        ws.on('message', (binaryData) => {
+          console.log('Datos binarios --- Escribiendo data');
+          fileStream.write(binaryData);
           ServerFiles()
         });
       }
-
-      // Escuchar audio binario y guardarlo en archivo
-      // if (Buffer.isBuffer(message)) {
-      //   const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
-      //   ws.on('message', (binaryData) => {
-      //     console.log('Datos binarios --- Escribiendo data');
-      //     fileStream.write(binaryData);
-      //     ServerFiles()
-      //   });
-      // }
-    } catch (e) {
-      console.error('Error procesando mensaje:', e);
     }
   });
 });
@@ -155,4 +127,16 @@ function ServerFiles() {
       });
     });
   });
+}
+
+function isText(uint8Array) {
+  try {
+    // Convierte el Uint8Array a texto
+    const text = new TextDecoder('utf-8').decode(uint8Array);
+    // Intenta parsearlo como JSON
+    JSON.parse(text);
+    return true; // Si no arroja error, es texto válido
+  } catch {
+    return false; // No es texto válido
+  }
 }
