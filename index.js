@@ -27,7 +27,7 @@ wss.on('connection', (ws, req) => {
     console.log('Mensaje recibido:', message.toString());
     try {
       const messageJson = JSON.parse(message);
-
+      console.log('Mensaje JSON:', messageJson);
       if (messageJson.type === 'open') {
         // Enviar respuesta de "opened"
         const openResponse = {
@@ -49,6 +49,7 @@ wss.on('connection', (ws, req) => {
           },
         };
         ws.send(JSON.stringify(openResponse));
+        console.log('Respuesta enviada:', openResponse);
       }
 
       // Escuchar audio binario y guardarlo en archivo
