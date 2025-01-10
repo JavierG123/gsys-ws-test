@@ -25,57 +25,51 @@ wss.on('connection', (ws, req) => {
   // Parsear el primer mensaje WebSocket
   ws.on('message', (message) => {
     try {
-      console.log('Tipo de mensaje: ', typeof message);
-      console.log('Mensaje recibido:', message.toString());
-      console.log('Media recibida' , JSON.parse(message).parameters.media)
-      const messageJson = JSON.parse(message);
-      console.log('Mensaje JSON:', messageJson);
-      if (messageJson.type === 'open') {
-        // Enviar respuesta de "opened"
-        const openResponse = {
-          version: "2",
-          type: "opened",
-          seq: messageJson.seq,
-          clientseq: 1,
-          id: messageJson.id,
-          parameters: {
-            startPaused: false,
-            media: [
-              {
-                type: "audio",
-                format: "PCMU",
-                channels: ["external"],
-                rate: 8000,
-              },
-            ],
-          },
+
+      if (!Buffer.isBuffer(message)) {
+        const messageJson = JSON.parse(message);
+        console.log('Mensaje JSON:', messageJson);
+        if (messageJson.type === 'open') {
+          // Enviar respuesta de "opened"
+          const openResponse = {
+            version: "2",
+            type: "opened",
+            seq: messageJson.seq,
+            clientseq: 1,
+            id: messageJson.id,
+            parameters: {
+              startPaused: false,
+              media: [
+                {
+                  type: "audio",
+                  format: "PCMU",
+                  channels: ["external"],
+                  rate: 8000,
+                },
+              ],
+            },
+          }
         };
         ws.send(JSON.stringify(openResponse));
-        console.log('Respuesta enviada:', openResponse);
-        console.log('Media enviada: ', openResponse.parameters.media);
+        // Responder a error de "Maximum size of entity for transcription data exceeded"
+        if (messageJson.type === 'error' && messageJson.parameters.code === 413) {
+          const errorResponse = {
+            version: "2",
+            type: "closed",
+            seq: 34,
+            clientseq: 15,
+            id: messageJson.id,
+            parameters: {},
+          };
+          ws.send(JSON.stringify(errorResponse));
+        }
       }
-
       // Escuchar audio binario y guardarlo en archivo
-      if (messageJson.type === 'audio') {
-        const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
-        ws.on('message', (binaryData) => {
-          fileStream.write(binaryData);
-        });
-      }
-
-      // Responder a error de "Maximum size of entity for transcription data exceeded"
-      if (messageJson.type === 'error' && messageJson.parameters.code === 413) {
-        const errorResponse = {
-          version: "2",
-          type: "closed",
-          seq: 34,
-          clientseq: 15,
-          id: messageJson.id,
-          parameters: {},
-        };
-        ws.send(JSON.stringify(errorResponse));
-      }
-
+      const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
+      ws.on('message', (binaryData) => {
+        console.log('Datos binarios --- Escribiendo data');
+        fileStream.write(binaryData);
+      });
     } catch (e) {
       console.error('Error procesando mensaje:', e);
     }
