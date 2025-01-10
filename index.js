@@ -24,9 +24,10 @@ app.get('/api/v1/voicebiometrics/ws', (req, res) => {
 wss.on('connection', (ws, req) => {
   // Parsear el primer mensaje WebSocket
   ws.on('message', (message) => {
-    console.log('Mensaje recibido:', message.toString());
-    console.log('Media recibida' , JSON.parse(message).parameters.media)
     try {
+      console.log('Tipo de mensaje: ', typeof message);
+      console.log('Mensaje recibido:', message.toString());
+      console.log('Media recibida' , JSON.parse(message).parameters.media)
       const messageJson = JSON.parse(message);
       console.log('Mensaje JSON:', messageJson);
       if (messageJson.type === 'open') {
