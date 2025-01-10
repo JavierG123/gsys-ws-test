@@ -43,7 +43,7 @@ wss.on('connection', (ws, req) => {
               {
                 type: "audio",
                 format: "PCMU",
-                channels: ["external", "internal"],
+                channels: ["external"],
                 rate: 8000,
               },
             ],
