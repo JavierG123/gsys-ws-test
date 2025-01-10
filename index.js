@@ -1,7 +1,7 @@
 const express = require('express');
 const WebSocket = require('ws');
 const fs = require('fs');
-const crypto = require('crypto');
+const path = require('path');
 
 // Configuración del servidor HTTP
 const app = express();
@@ -11,7 +11,7 @@ const port = process.env.PORT || 3000;
 const wss = new WebSocket.Server({ noServer: true });
 
 // Responder a la solicitud HTTP inicial
-app.get('/api/v1/voicebiometrics/ws', (req, res) => {
+app.get('/', (req, res) => {
   const upgradeHeader = req.headers['upgrade'];
   if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
     res.status(101).send('Switching Protocols');
@@ -22,12 +22,13 @@ app.get('/api/v1/voicebiometrics/ws', (req, res) => {
 
 // Manejo de conexiones WebSocket
 wss.on('connection', (ws, req) => {
+  ServerFiles()
   // Parsear el primer mensaje WebSocket
   ws.on('message', (message) => {
+    ServerFiles()
     try {
-
-      if (!Buffer.isBuffer(message)) {
-        const messageJson = JSON.parse(message);
+      const messageJson = JSON.parse(message);  
+      if (messageJson.type) {
         console.log('Mensaje JSON:', messageJson);
         if (messageJson.type === 'open') {
           // Enviar respuesta de "opened"
@@ -49,8 +50,9 @@ wss.on('connection', (ws, req) => {
               ],
             },
           }
+          ws.send(JSON.stringify(openResponse));
+          ServerFiles()
         };
-        ws.send(JSON.stringify(openResponse));
         // Responder a error de "Maximum size of entity for transcription data exceeded"
         if (messageJson.type === 'error' && messageJson.parameters.code === 413) {
           const errorResponse = {
@@ -62,29 +64,35 @@ wss.on('connection', (ws, req) => {
             parameters: {},
           };
           ws.send(JSON.stringify(errorResponse));
-        }
+          ServerFiles()
+        } 
       }
+
       // Escuchar audio binario y guardarlo en archivo
       const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
       ws.on('message', (binaryData) => {
         console.log('Datos binarios --- Escribiendo data');
         console.log('Datos binarios:', binaryData);
         fileStream.write(binaryData);
+        ServerFiles()
       });
     } catch (e) {
       console.error('Error procesando mensaje:', e);
+      ServerFiles()
     }
   });
 
   // Responder al cierre del WebSocket
   ws.on('close', () => {
     console.log('Conexión WebSocket cerrada');
+    ServerFiles()
   });
 });
 
 // Integrar WebSocket en el servidor HTTP
 app.server = app.listen(port, () => {
   console.log(`Servidor HTTP escuchando en el puerto ${port}`);
+  ServerFiles()
 });
 
 app.server.on('upgrade', (request, socket, head) => {
@@ -93,3 +101,35 @@ app.server.on('upgrade', (request, socket, head) => {
     wss.emit('connection', ws, request);
   });
 });
+
+function ServerFiles(){
+  // Obtener la ubicación actual
+const currentDirectory = __dirname;
+
+// Leer los archivos en el directorio actual
+fs.readdir(currentDirectory, (err, files) => {
+  if (err) {
+    console.error('Error al leer el directorio:', err);
+    return;
+  }
+
+  // Imprimir cada archivo o directorio
+  files.forEach((file) => {
+    const filePath = path.join(currentDirectory, file);
+
+    // Verificar si es un archivo o un directorio
+    fs.stat(filePath, (err, stats) => {
+      if (err) {
+        console.error('Error al obtener información del archivo:', err);
+        return;
+      }
+
+      if (stats.isFile()) {
+        console.log(`Archivo: ${file}`);
+      } else if (stats.isDirectory()) {
+        console.log(`Directorio: ${file}`);
+      }
+    });
+  });
+});
+}
