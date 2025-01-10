@@ -51,7 +51,7 @@ wss.on('connection', (ws, req) => {
         };
         ws.send(JSON.stringify(openResponse));
         console.log('Respuesta enviada:', openResponse);
-        console.log('Media enviada: ', JSON.parse(openResponse).parameters.media);
+        console.log('Media enviada: ', openResponse.parameters.media);
       }
 
       // Escuchar audio binario y guardarlo en archivo
