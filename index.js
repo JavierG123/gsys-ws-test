@@ -68,6 +68,7 @@ wss.on('connection', (ws, req) => {
       const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
       ws.on('message', (binaryData) => {
         console.log('Datos binarios --- Escribiendo data');
+        console.log('Datos binarios:', binaryData);
         fileStream.write(binaryData);
       });
     } catch (e) {
