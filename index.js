@@ -2,6 +2,7 @@ const express = require('express');
 const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
+const util = require('util');
 
 // Configuración del servidor HTTP
 const app = express();
@@ -25,10 +26,34 @@ app.get('/', (req, res) => {
 wss.on('connection', (ws, req) => {
   // Parsear el primer mensaje WebSocket
   ws.on('message', (message) => {
+    console.log('Mensaje detallado:', util.inspect(message, { depth: null }));
+    console.log('----------------->', Object.prototype.toString.call(message));
+    console.log('Mensaje recibido:', message);
+    console.log('Tipo de mensaje:', typeof message);
+    if (Buffer.isBuffer(message)) {
+      console.log('Bytes iniciales del Buffer:', message.slice(0, 10)); // Muestra los primeros 10 bytes
+    }
+    if (message instanceof ArrayBuffer) {
+      console.log('Es un ArrayBuffer.');
+    } else if (ArrayBuffer.isView(message)) {
+      console.log('Es un TypedArray (por ejemplo, Uint8Array).');
+    }
+    if (Buffer.isBuffer(message)) {
+      console.log('Es un Buffer (datos binarios).');
+    } else {
+      console.log('No es un Buffer.');
+    }
+    if (message instanceof String) {
+      console.log('Es un String.');
+    } else if (message instanceof Buffer) {
+      console.log('Es un Buffer.');
+    } else {
+      console.log('Tipo desconocido.');
+    }
     try {
       const messageJson = JSON.parse(message);
       if (messageJson.type) {
-        console.log('Mensaje JSON:', messageJson);
+        console.log('Mensaje JSON RECIBIDO:', messageJson);
         if (messageJson.type === 'open') {
           // Enviar respuesta de "opened"
           const openResponse = {
