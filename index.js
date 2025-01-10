@@ -22,6 +22,28 @@ app.get('/', (req, res) => {
   }
 });
 
+// Servir el archivo cuando se accede a la URL /archivo
+app.get('/archivo', (req, res) => {
+  const filePath = path.join(__dirname, 'audio_stream.pcm');
+  
+  // Verificar si el archivo existe antes de enviarlo
+  fs.stat(filePath, (err, stats) => {
+    if (err) {
+      console.error('Error al acceder al archivo:', err);
+      return res.status(404).send('Archivo no encontrado');
+    }
+
+    // Enviar el archivo al cliente para su descarga
+    res.download(filePath, 'audio_stream.pcm', (err) => {
+      if (err) {
+        console.error('Error al enviar el archivo:', err);
+        res.status(500).send('Error al descargar el archivo');
+      }
+    });
+  });
+});
+
+
 // Manejo de conexiones WebSocket
 wss.on('connection', (ws, req) => {
   // Parsear el primer mensaje WebSocket
