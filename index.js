@@ -72,14 +72,14 @@ wss.on('connection', (ws, req) => {
       }
 
       // Escuchar audio binario y guardarlo en archivo
-      if (Buffer.isBuffer(message)) {
-        const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
-        ws.on('message', (binaryData) => {
-          console.log('Datos binarios --- Escribiendo data');
-          fileStream.write(binaryData);
-          ServerFiles()
-        });
-      }
+      // if (Buffer.isBuffer(message)) {
+      //   const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
+      //   ws.on('message', (binaryData) => {
+      //     console.log('Datos binarios --- Escribiendo data');
+      //     fileStream.write(binaryData);
+      //     ServerFiles()
+      //   });
+      // }
     } catch (e) {
       console.error('Error procesando mensaje:', e);
     }
