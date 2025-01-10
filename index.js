@@ -25,6 +25,7 @@ wss.on('connection', (ws, req) => {
   // Parsear el primer mensaje WebSocket
   ws.on('message', (message) => {
     console.log('Mensaje recibido:', message.toString());
+    console.log('Media recibida' , JSON.parse(message).parameters.media)
     try {
       const messageJson = JSON.parse(message);
       console.log('Mensaje JSON:', messageJson);
@@ -50,6 +51,7 @@ wss.on('connection', (ws, req) => {
         };
         ws.send(JSON.stringify(openResponse));
         console.log('Respuesta enviada:', openResponse);
+        console.log('Media enviada: ', JSON.parse(openResponse).parameters.media);
       }
 
       // Escuchar audio binario y guardarlo en archivo
