@@ -25,7 +25,7 @@ app.get('/', (req, res) => {
 // Servir el archivo cuando se accede a la URL /archivo
 app.get('/archivo', (req, res) => {
   const filePath = path.join(__dirname, 'audioStream.raw');
-  
+
   // Verificar si el archivo existe antes de enviarlo
   fs.stat(filePath, (err, stats) => {
     if (err) {
@@ -87,7 +87,7 @@ wss.on('connection', (ws, req) => {
         ws.send(JSON.stringify(errorResponse));
       }
       // Responder al cierre del WebSocket
-    }else{
+    } else {
       //Escuchar audio binario y guardarlo en archivo
       // const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
       // ws.on('message', (binaryData) => {
@@ -95,7 +95,7 @@ wss.on('connection', (ws, req) => {
       //   fileStream.write(binaryData);
       // });
       let audioData = [];
-      ws.on('message', (data)=>{
+      ws.on('message', (data) => {
         if (data instanceof Uint8Array) {
           console.log('Datos binarios ---', data.BYTES_PER_ELEMENT);
           audioData.push(data);
@@ -107,6 +107,20 @@ wss.on('connection', (ws, req) => {
       console.log('Conexión WebSocket cerrada');
       ServerFiles()
     });
+    ws.on('ping', (ping) => {
+      const pingJson = JSON.parse(ping)
+      console.log('Ping recibido', pingJson);
+      const pong = {
+        "version": pingJson.version,
+        "type": "pong",
+        "seq": pingJson.seq,
+        "clientseq": 2,
+        "id": pingJson.id,
+        "parameters": {}
+      }
+      ws.pong(JSON.stringify(openResponse));
+      console.log('Pong enviado');
+    })
   });
 });
 
