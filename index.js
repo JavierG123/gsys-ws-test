@@ -3,15 +3,7 @@ const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
 const util = require('util');
-const EventEmitter = require('events');
-
-class MyEmitter extends EventEmitter {}
-
-const myEmitter = new MyEmitter();
-
-myEmitter.setMaxListeners(0);
-
-myEmitter.emit('event');
+process.setMaxListeners(0);
 
 // Configuración del servidor HTTP
 const app = express();
@@ -127,7 +119,7 @@ wss.on('connection', (ws, req) => {
             "version": pingJson.version,
             "type": "pong",
             "seq": pingJson.seq,
-            "clientseq": pingJson.serverseq + 1,
+            "clientseq": pingJson.seq,
             "id": pingJson.id,
             "parameters": {}
           }
