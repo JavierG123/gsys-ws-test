@@ -107,19 +107,21 @@ wss.on('connection', (ws, req) => {
       console.log('Conexión WebSocket cerrada');
       ServerFiles()
     });
-    ws.on('ping', (ping) => {
+    ws.on('message', (ping) => {
       const pingJson = JSON.parse(ping)
-      console.log('Ping recibido', pingJson);
-      const pong = {
-        "version": pingJson.version,
-        "type": "pong",
-        "seq": pingJson.seq,
-        "clientseq": 2,
-        "id": pingJson.id,
-        "parameters": {}
+      if (pingJson.type === 'ping') {
+        console.log('Ping recibido', pingJson);
+        const pong = {
+          "version": pingJson.version,
+          "type": "pong",
+          "seq": pingJson.seq,
+          "clientseq": 2,
+          "id": pingJson.id,
+          "parameters": {}
+        }
+        ws.send(JSON.stringify(openResponse));
+        console.log('Pong enviado');
       }
-      ws.send(JSON.stringify(openResponse));
-      console.log('Pong enviado');
     })
   });
 });
