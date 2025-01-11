@@ -121,7 +121,7 @@ wss.on('connection', (ws, req) => {
             "id": pingJson.id,
             "parameters": {}
           }
-          ws.send(JSON.stringify(openResponse));
+          ws.send(JSON.stringify(pong));
           console.log('Pong enviado');
         }
       }
