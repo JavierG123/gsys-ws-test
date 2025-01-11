@@ -108,7 +108,7 @@ wss.on('connection', (ws, req) => {
       ServerFiles()
     });
     ws.on('message', (ping) => {
-      if (isText(message)) {
+      if (isText(ping)) {
         const pingJson = JSON.parse(ping)
         if (pingJson.type === 'ping') {
           console.log('Ping recibido', pingJson);
