@@ -7,6 +7,7 @@ const path = require('path');
 // Configuración del servidor
 const PORT = 8080;
 const AUDIO_DIR = path.join(__dirname, 'audio');
+const LOG_FILE = path.join(__dirname, 'server.log');
 
 if (!fs.existsSync(AUDIO_DIR)) {
   fs.mkdirSync(AUDIO_DIR);
@@ -14,7 +15,7 @@ if (!fs.existsSync(AUDIO_DIR)) {
 
 const app = express();
 const server = app.listen(PORT, () => {
-  console.log(`Servidor HTTP escuchando en puerto ${PORT}`);
+  logMessage(`Servidor HTTP escuchando en puerto ${PORT}`);
 });
 
 const wss = new WebSocket.Server({ server });
@@ -22,10 +23,16 @@ const wss = new WebSocket.Server({ server });
 // Manejo de sesiones
 const sessions = {};
 
+// Función para escribir logs en un archivo
+function logMessage(message) {
+  const timestamp = new Date().toISOString();
+  fs.appendFileSync(LOG_FILE, `[${timestamp}] ${message}\n`);
+}
+
 // Manejar conexiones WebSocket
 wss.on('connection', (ws, req) => {
-  console.log('Nueva conexión WebSocket');
-  console.log('Cabeceras:', req.headers);
+  logMessage('Nueva conexión WebSocket');
+  logMessage(`Cabeceras: ${JSON.stringify(req.headers)}`);
 
   ws.on('message', (data, isBinary) => {
     if (isBinary) {
@@ -36,7 +43,7 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('close', () => {
-    console.log('Conexión WebSocket cerrada');
+    logMessage('Conexión WebSocket cerrada');
   });
 });
 
@@ -46,7 +53,14 @@ function handleMessage(ws, message) {
     const sessionId = msg.id;
 
     if (!sessions[sessionId]) {
-      sessions[sessionId] = { seq: 1, audioChunks: [] };
+      sessions[sessionId] = { seq: 1, audioChunks: [], pongSent: false, ws };
+    }
+
+    const session = sessions[sessionId];
+
+    if (msg.seq !== session.seq) {
+      logMessage(`Secuense error. expected ${session.seq} but received ${msg.seq}.`);
+      return;
     }
 
     switch (msg.type) {
@@ -60,10 +74,10 @@ function handleMessage(ws, message) {
         handleClose(ws, msg);
         break;
       default:
-        console.warn(`Tipo de mensaje desconocido: ${msg.type}`);
+        logMessage(`Tipo de mensaje desconocido: ${msg.type}`);
     }
   } catch (err) {
-    console.error('Error procesando mensaje:', err);
+    logMessage(`Error procesando mensaje: ${err}`);
   }
 }
 
@@ -72,15 +86,13 @@ function handleBinaryData(ws, data) {
   if (sessionId) {
     sessions[sessionId].audioChunks.push(data);
   } else {
-    console.warn('Datos binarios recibidos sin sesión activa.');
+    logMessage('Datos binarios recibidos sin sesión activa.');
   }
 }
 
 function handleOpen(ws, msg) {
   const sessionId = msg.id;
   const session = sessions[sessionId];
-
-  session.ws = ws;
 
   const response = {
     version: '2',
@@ -101,7 +113,12 @@ function handlePing(ws, msg) {
   const sessionId = msg.id;
   const session = sessions[sessionId];
 
-  const response = {
+  if (session.pongSent) {
+    logMessage('received pong without request');
+    return;
+  }
+
+  const pongResponse = {
     version: '2',
     type: 'pong',
     seq: session.seq++,
@@ -110,7 +127,29 @@ function handlePing(ws, msg) {
     parameters: {},
   };
 
-  ws.send(JSON.stringify(response));
+  ws.send(JSON.stringify(pongResponse));
+  session.pongSent = true;
+
+  // Enviar evento adicional con el primer pong
+  const eventResponse = {
+    version: '2',
+    type: 'event',
+    seq: session.seq++,
+    serverseq: msg.seq,
+    id: sessionId,
+    parameters: {
+      entities: [
+        {
+          type: 'example',
+          data: {
+            OutputVariable: 'PruebaDesdeBot',
+          },
+        },
+      ],
+    },
+  };
+
+  ws.send(JSON.stringify(eventResponse));
 }
 
 function handleClose(ws, msg) {
@@ -131,7 +170,7 @@ function handleClose(ws, msg) {
   // Guardar el audio en un archivo WAV
   const audioFilePath = path.join(AUDIO_DIR, `${sessionId}.wav`);
   fs.writeFileSync(audioFilePath, Buffer.concat(session.audioChunks));
-  console.log(`Audio guardado en ${audioFilePath} --- ${sessionId}`);
+  logMessage(`Audio guardado en ${audioFilePath} --- ${sessionId}`);
 
   delete sessions[sessionId];
 }
@@ -143,5 +182,14 @@ app.get('/archivo/:id', (req, res) => {
     res.download(audioFilePath);
   } else {
     res.status(404).send('Archivo no encontrado');
+  }
+});
+
+// Endpoint para descargar el log
+app.get('/log', (req, res) => {
+  if (fs.existsSync(LOG_FILE)) {
+    res.download(LOG_FILE);
+  } else {
+    res.status(404).send('Log no encontrado');
   }
 });
