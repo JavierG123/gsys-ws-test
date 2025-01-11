@@ -3,7 +3,9 @@ const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
 const util = require('util');
-process.setMaxListeners(0);
+require('events').EventEmitter.defaultMaxListeners = 100;
+require('events').EventEmitter.prototype._maxListeners = 100;
+process.setMaxListeners(100);
 
 // Configuración del servidor HTTP
 const app = express();
@@ -44,7 +46,8 @@ app.get('/archivo', (req, res) => {
   });
 });
 
-
+let pongseq = 0;
+let openseq = 0;
 // Manejo de conexiones WebSocket
 wss.on('connection', (ws, req) => {
   // Parsear el primer mensaje WebSocket
@@ -57,7 +60,7 @@ wss.on('connection', (ws, req) => {
         const openResponse = {
           version: "2",
           type: "opened",
-          seq: messageJson.seq,
+          seq: openseq,
           clientseq: 1,
           id: messageJson.id,
           parameters: {
@@ -74,6 +77,7 @@ wss.on('connection', (ws, req) => {
         }
         ws.send(JSON.stringify(openResponse));
         console.log('Respuesta de "opened" enviada');
+        openseq++;
       };
       // Responder a error de "Maximum size of entity for transcription data exceeded"
       if (messageJson.type === 'error' && messageJson.parameters.code === 413) {
@@ -118,13 +122,14 @@ wss.on('connection', (ws, req) => {
           const pong = {
             "version": pingJson.version,
             "type": "pong",
-            "seq": pingJson.seq,
+            "seq": pongseq,
             "clientseq": pingJson.seq,
             "id": pingJson.id,
             "parameters": {}
           }
           ws.send(JSON.stringify(pong));
           console.log('Pong enviado: ', pong);
+          pongseq++;  
         }
       }
     })
