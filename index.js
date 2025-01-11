@@ -96,8 +96,8 @@ wss.on('connection', (ws, req) => {
       // });
       let audioData = [];
       ws.on('message', (data) => {
-        if (data instanceof Uint8Array) {
-          console.log('Datos binarios ---', data.buffer.byteLength.toString());
+        if (!isText(message)) {
+          //console.log('Datos binarios ---', data.buffer.byteLength.toString());
           audioData.push(data);
           fs.appendFileSync('audioStream.raw', Buffer.from(data));
         }
@@ -105,7 +105,7 @@ wss.on('connection', (ws, req) => {
     }
     ws.on('close', () => {
       console.log('Conexión WebSocket cerrada');
-      ServerFiles()
+      //ServerFiles()
     });
     ws.on('message', (ping) => {
       if (isText(ping)) {
@@ -122,7 +122,7 @@ wss.on('connection', (ws, req) => {
             "parameters": {}
           }
           ws.send(JSON.stringify(pong));
-          console.log('Pong enviado');
+          console.log('Pong enviado: ', pong);
         }
       }
     })
