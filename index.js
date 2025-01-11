@@ -24,7 +24,7 @@ app.get('/', (req, res) => {
 
 // Servir el archivo cuando se accede a la URL /archivo
 app.get('/archivo', (req, res) => {
-  const filePath = path.join(__dirname, 'audio_stream.pcm');
+  const filePath = path.join(__dirname, 'audioStream.raw');
   
   // Verificar si el archivo existe antes de enviarlo
   fs.stat(filePath, (err, stats) => {
@@ -34,7 +34,7 @@ app.get('/archivo', (req, res) => {
     }
 
     // Enviar el archivo al cliente para su descarga
-    res.download(filePath, 'audio_stream.pcm', (err) => {
+    res.download(filePath, 'audioStream.raw', (err) => {
       if (err) {
         console.error('Error al enviar el archivo:', err);
         res.status(500).send('Error al descargar el archivo');
@@ -89,11 +89,19 @@ wss.on('connection', (ws, req) => {
       // Responder al cierre del WebSocket
     }else{
       //Escuchar audio binario y guardarlo en archivo
-      const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
-      ws.on('message', (binaryData) => {
-        console.log('Datos binarios ---', binaryData);
-        fileStream.write(binaryData);
-      });
+      // const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
+      // ws.on('message', (binaryData) => {
+      //   console.log('Datos binarios ---', binaryData);
+      //   fileStream.write(binaryData);
+      // });
+      let audioData = [];
+      ws.on('message', (data)=>{
+        if (data instanceof Uint8Array) {
+          console.log('Datos binarios ---', data.BYTES_PER_ELEMENT);
+          audioData.push(data);
+          fs.appendFileSync('audioStream.raw', Buffer.from(data));
+        }
+      })
     }
     ws.on('close', () => {
       console.log('Conexión WebSocket cerrada');
