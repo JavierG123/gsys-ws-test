@@ -96,8 +96,8 @@ wss.on('connection', (ws, req) => {
       // });
       let audioData = [];
       ws.on('message', (data) => {
-        if (!isText(message)) {
-          //console.log('Datos binarios ---', data.buffer.byteLength.toString());
+        if (!isText(data)) {
+          console.log('Datos NO TEXTO ---', data.buffer.byteLength.toString());
           audioData.push(data);
           fs.appendFileSync('audioStream.raw', Buffer.from(data));
         }
@@ -112,12 +112,11 @@ wss.on('connection', (ws, req) => {
         const pingJson = JSON.parse(ping)
         if (pingJson.type === 'ping') {
           console.log('Ping recibido', pingJson);
-          const clientseq = parseInt(pingJson.clientseq) + 1;
           const pong = {
             "version": pingJson.version,
             "type": "pong",
             "seq": pingJson.seq,
-            "clientseq": clientseq.toString(),
+            "clientseq": pingJson.serverseq + 1,
             "id": pingJson.id,
             "parameters": {}
           }
