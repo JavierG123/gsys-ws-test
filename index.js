@@ -97,7 +97,7 @@ wss.on('connection', (ws, req) => {
       let audioData = [];
       ws.on('message', (data) => {
         if (data instanceof Uint8Array) {
-          console.log('Datos binarios ---', data.BYTES_PER_ELEMENT);
+          console.log('Datos binarios ---', data.buffer.byteLength.toString());
           audioData.push(data);
           fs.appendFileSync('audioStream.raw', Buffer.from(data));
         }
@@ -118,7 +118,7 @@ wss.on('connection', (ws, req) => {
         "id": pingJson.id,
         "parameters": {}
       }
-      ws.pong(JSON.stringify(openResponse));
+      ws.send(JSON.stringify(openResponse));
       console.log('Pong enviado');
     })
   });
