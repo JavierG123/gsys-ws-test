@@ -87,26 +87,24 @@ wss.on('connection', (ws, req) => {
         ws.send(JSON.stringify(errorResponse));
       }
       // Responder al cierre del WebSocket
-      ws.on('close', () => {
-        console.log('Conexión WebSocket cerrada');
-        ServerFiles()
-      });
     }else{
       //Escuchar audio binario y guardarlo en archivo
-        const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
-        ws.on('message', (binaryData) => {
-          console.log('Datos binarios --- Escribiendo data');
-          fileStream.write(binaryData);
-          ServerFiles()
-        });
+      const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
+      ws.on('message', (binaryData) => {
+        console.log('Datos binarios ---', binaryData);
+        fileStream.write(binaryData);
+      });
     }
+    ws.on('close', () => {
+      console.log('Conexión WebSocket cerrada');
+      ServerFiles()
+    });
   });
 });
 
 // Integrar WebSocket en el servidor HTTP
 app.server = app.listen(port, () => {
   console.log(`Servidor HTTP escuchando en el puerto ${port}`);
-  ServerFiles()
 });
 
 app.server.on('upgrade', (request, socket, head) => {
