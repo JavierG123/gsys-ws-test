@@ -53,15 +53,10 @@ function handleMessage(ws, message) {
     const sessionId = msg.id;
 
     if (!sessions[sessionId]) {
-      sessions[sessionId] = { seq: 1, audioChunks: [], pongSent: false, ws };
+      sessions[sessionId] = { seq: 1, audioChunks: [], pongSent: false, ws , eventSent: false};
     }
 
     const session = sessions[sessionId];
-
-    if (msg.seq !== session.seq) {
-      logMessage(`Secuense error. expected ${session.seq} but received ${msg.seq}.`);
-      return;
-    }
 
     switch (msg.type) {
       case 'open':
@@ -113,11 +108,6 @@ function handlePing(ws, msg) {
   const sessionId = msg.id;
   const session = sessions[sessionId];
 
-  if (session.pongSent) {
-    logMessage('received pong without request');
-    return;
-  }
-
   const pongResponse = {
     version: '2',
     type: 'pong',
@@ -130,26 +120,29 @@ function handlePing(ws, msg) {
   ws.send(JSON.stringify(pongResponse));
   session.pongSent = true;
 
-  // Enviar evento adicional con el primer pong
-  const eventResponse = {
-    version: '2',
-    type: 'event',
-    seq: session.seq++,
-    serverseq: msg.seq,
-    id: sessionId,
-    parameters: {
-      entities: [
-        {
-          type: 'example',
-          data: {
-            OutputVariable: 'PruebaDesdeBot',
+  if(session.eventSent === false){
+    // Enviar evento adicional con el primer pong
+    const eventResponse = {
+      version: '2',
+      type: 'event',
+      seq: session.seq++,
+      serverseq: msg.seq,
+      id: sessionId,
+      parameters: {
+        entities: [
+          {
+            type: 'example',
+            data: {
+              OutputVariable: 'PruebaDesdeBot',
+            },
           },
-        },
-      ],
-    },
-  };
-
-  ws.send(JSON.stringify(eventResponse));
+        ],
+      },
+    };
+  
+    ws.send(JSON.stringify(eventResponse));
+    session.eventSent = true;
+  }
 }
 
 function handleClose(ws, msg) {
