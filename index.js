@@ -3,6 +3,15 @@ const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
 const util = require('util');
+const EventEmitter = require('events');
+
+class MyEmitter extends EventEmitter {}
+
+const myEmitter = new MyEmitter();
+
+myEmitter.setMaxListeners(0);
+
+myEmitter.emit('event');
 
 // Configuración del servidor HTTP
 const app = express();
@@ -24,7 +33,7 @@ app.get('/', (req, res) => {
 
 // Servir el archivo cuando se accede a la URL /archivo
 app.get('/archivo', (req, res) => {
-  const filePath = path.join(__dirname, 'audioStream.raw');
+  const filePath = path.join(__dirname, 'audio_stream.pcm');
 
   // Verificar si el archivo existe antes de enviarlo
   fs.stat(filePath, (err, stats) => {
@@ -34,7 +43,7 @@ app.get('/archivo', (req, res) => {
     }
 
     // Enviar el archivo al cliente para su descarga
-    res.download(filePath, 'audioStream.raw', (err) => {
+    res.download(filePath, 'audio_stream.pcm', (err) => {
       if (err) {
         console.error('Error al enviar el archivo:', err);
         res.status(500).send('Error al descargar el archivo');
@@ -94,12 +103,14 @@ wss.on('connection', (ws, req) => {
       //   console.log('Datos binarios ---', binaryData);
       //   fileStream.write(binaryData);
       // });
-      let audioData = [];
+      //let audioData = [];
       ws.on('message', (data) => {
         if (!isText(data)) {
           console.log('Datos NO TEXTO ---', data.buffer.byteLength.toString());
-          audioData.push(data);
-          fs.appendFileSync('audioStream.raw', Buffer.from(data));
+          // audioData.push(data);
+          // fs.appendFileSync('audioStream.raw', Buffer.from(data));
+          const fileStream = fs.createWriteStream('audio_stream.pcm', { flags: 'a' });
+          fileStream.write(data);
         }
       })
     }
