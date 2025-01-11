@@ -108,19 +108,22 @@ wss.on('connection', (ws, req) => {
       ServerFiles()
     });
     ws.on('message', (ping) => {
-      const pingJson = JSON.parse(ping)
-      if (pingJson.type === 'ping') {
-        console.log('Ping recibido', pingJson);
-        const pong = {
-          "version": pingJson.version,
-          "type": "pong",
-          "seq": pingJson.seq,
-          "clientseq": 2,
-          "id": pingJson.id,
-          "parameters": {}
+      if (isText(message)) {
+        const pingJson = JSON.parse(ping)
+        if (pingJson.type === 'ping') {
+          console.log('Ping recibido', pingJson);
+          const clientseq = parseInt(pingJson.clientseq) + 1;
+          const pong = {
+            "version": pingJson.version,
+            "type": "pong",
+            "seq": pingJson.seq,
+            "clientseq": clientseq.toString(),
+            "id": pingJson.id,
+            "parameters": {}
+          }
+          ws.send(JSON.stringify(openResponse));
+          console.log('Pong enviado');
         }
-        ws.send(JSON.stringify(openResponse));
-        console.log('Pong enviado');
       }
     })
   });
