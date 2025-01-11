@@ -46,8 +46,8 @@ app.get('/archivo', (req, res) => {
   });
 });
 
-let pongseq = 0;
-let openseq = 0;
+let pongseq = 1;
+let openseq = 1;
 // Manejo de conexiones WebSocket
 wss.on('connection', (ws, req) => {
   // Parsear el primer mensaje WebSocket
