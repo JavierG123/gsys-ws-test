@@ -43,8 +43,17 @@ wss.on('connection', (ws, req) => {
     }
   });
 
-  ws.on('close', () => {
+  ws.on('close', (data) => {
     logMessage('Conexión WebSocket cerrada');
+    // Cerrar el archivo y eliminar la sesión
+    const msg = JSON.parse(data);
+    logMessage(`----> on close: ${JSON.stringify(msg)}`);
+    const sessionId = msg.id;
+    const session = sessions[sessionId];
+    if (session.fileStream) {
+      session.wavWriter.end();
+      logMessage(`Archivo guardado en ${path.join(AUDIO_DIR, `${sessionId}.wav --- ${sessionId}`)}`);
+    }
   });
 });
 
@@ -188,12 +197,6 @@ function handleClose(ws, msg) {
 
   ws.send(JSON.stringify(response));
   logMessage('Closed enviado');
-
-  // Cerrar el archivo y eliminar la sesión
-  if (session.fileStream) {
-    session.wavWriter.end();
-    logMessage(`Archivo binario puro guardado en ${path.join(AUDIO_DIR, `${sessionId}.wav --- ${sessionId}`)}`);
-  }
 
   delete sessions[sessionId];
 }
