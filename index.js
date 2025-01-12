@@ -3,6 +3,8 @@ const WebSocket = require('ws');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { log } = require('console');
+const wav = require('wav');
 
 // Configuración del servidor
 const PORT = 8080;
@@ -54,8 +56,16 @@ function handleMessage(ws, message) {
     const sessionId = msg.id;
 
     if (!sessions[sessionId]) {
-      const fileStream = fs.createWriteStream(path.join(AUDIO_DIR, `${sessionId}.raw`), { flags: 'w' });
-      sessions[sessionId] = { seq: 1, fileStream, pongSent: false, ws };
+      //const fileStream = fs.createWriteStream(path.join(AUDIO_DIR, `${sessionId}.raw`), { flags: 'w' });
+      const fileStream = fs.createWriteStream(path.join(AUDIO_DIR, `${sessionId}.wav`));
+      // Crear el escritor WAV
+      const wavWriter = new wav.Writer({
+        channels: 1,          // Mono
+        sampleRate: 8000,     // Frecuencia de muestreo
+        bitDepth: 8,          // Profundidad de bits
+      });
+      wavWriter.pipe(fileStream);
+      sessions[sessionId] = { seq: 1, fileStream, wavWriter, pongSent: false, ws };
       //sessions[sessionId] = { seq: 1, audioChunks: [], pongSent: false, ws , eventSent: false};
     }
 
@@ -83,7 +93,8 @@ function handleBinaryData(ws, data) {
   const sessionId = Object.keys(sessions).find(id => sessions[id].ws === ws);
   if (sessionId) {
     const session = sessions[sessionId];
-    session.fileStream.write(data);
+    session.wavWriter.write(data);
+    //session.fileStream.write(data);
     //sessions[sessionId].audioChunks.push(data);
   } else {
     logMessage('Datos binarios recibidos sin sesión activa.');
@@ -92,6 +103,7 @@ function handleBinaryData(ws, data) {
 
 function handleOpen(ws, msg) {
   logMessage('Open recibido');
+  logMessage(`Media: ${msg.parameters.media}`);
   const sessionId = msg.id;
   const session = sessions[sessionId];
 
@@ -148,7 +160,7 @@ function handlePing(ws, msg) {
   //       ],
   //     },
   //   };
-  
+
   //   ws.send(JSON.stringify(eventResponse));
   //   session.eventSent = true;
   //   logMessage('Evento enviado');
@@ -171,10 +183,11 @@ function handleClose(ws, msg) {
 
   ws.send(JSON.stringify(response));
   logMessage('Closed enviado');
-  
+
   // Cerrar el archivo y eliminar la sesión
   if (session.fileStream) {
-    session.fileStream.end(); // Finaliza la escritura en el archivo
+    //session.fileStream.end(); // Finaliza la escritura en el archivo
+    session.wavWriter.end();
     logMessage(`Archivo binario puro guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
   }
   // // Guardar el audio en un archivo WAV
@@ -187,7 +200,7 @@ function handleClose(ws, msg) {
 
 // Endpoint para descargar audio
 app.get('/archivo/:id', (req, res) => {
-  const audioFilePath = path.join(AUDIO_DIR, `${req.params.id}.raw`);
+  const audioFilePath = path.join(AUDIO_DIR, `${req.params.id}.wav`);
   if (fs.existsSync(audioFilePath)) {
     res.download(audioFilePath);
   } else {
