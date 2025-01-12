@@ -120,30 +120,35 @@ function handlePing(ws, msg) {
     id: sessionId,
     parameters: {},
   };
-  
+
   ws.send(JSON.stringify(pongResponse));
   logMessage('Pong enviado');
   session.pongSent = true;
 
-  if(session.eventSent === false){
-    // Enviar evento adicional con el primer pong
-    const eventResponse = {
-      version: '2',
-      type: 'event',
-      seq: session.seq++,
-      serverseq: msg.seq,
-      id: sessionId,
-      parameters: {
-        outputVariables: {
-          OutputVariable: 'PruebaDesdeBot'
-        }
-      },
-    };
+  // if(session.eventSent === false){
+  //   // Enviar evento adicional con el primer pong
+  //   const eventResponse = {
+  //     version: '2',
+  //     type: 'event',
+  //     seq: session.seq++,
+  //     serverseq: msg.seq,
+  //     id: sessionId,
+  //     parameters: {
+  //       entities: [
+  //         {
+  //           type: 'OutputVariable',
+  //           data: {
+  //             OutputVariable: 'PruebaDesdeBot',
+  //           },
+  //         },
+  //       ],
+  //     },
+  //   };
   
-    ws.send(JSON.stringify(eventResponse));
-    session.eventSent = true;
-    logMessage('Evento enviado');
-  }
+  //   ws.send(JSON.stringify(eventResponse));
+  //   session.eventSent = true;
+  //   logMessage('Evento enviado');
+  // }
 }
 
 function handleClose(ws, msg) {
