@@ -92,7 +92,8 @@ function handleBinaryData(ws, data) {
   const sessionId = Object.keys(sessions).find(id => sessions[id].ws === ws);
   if (sessionId) {
     const session = sessions[sessionId];
-    session.wavWriter.write(data);
+    const pcmData = decodeMuLawToPCM(data);
+    session.wavWriter.write(pcmData);
     //session.fileStream.write(data);
     //sessions[sessionId].audioChunks.push(data);
   } else {
@@ -195,6 +196,33 @@ function handleClose(ws, msg) {
   // logMessage(`Audio guardado en ${audioFilePath} --- ${sessionId}`);
 
   delete sessions[sessionId];
+}
+
+// Tabla de descompresión de u-Law a PCM lineal (G.711 estándar)
+const MULAW_DECODE_TABLE = new Int16Array(256);
+
+function generateMuLawDecodeTable() {
+    for (let i = 0; i < 256; i++) {
+        let muLawByte = ~i; // Invertir los bits
+        let sign = (muLawByte & 0x80) ? -1 : 1;
+        let exponent = (muLawByte >> 4) & 0x07;
+        let mantissa = muLawByte & 0x0F;
+        let magnitude = ((0x21 << exponent) + (mantissa << (exponent + 3))) - 0x84;
+        MULAW_DECODE_TABLE[i] = sign * magnitude;
+    }
+}
+
+// Llama a esta función al inicializar tu aplicación para llenar la tabla
+generateMuLawDecodeTable();
+
+// Función para decodificar un buffer de u-Law a PCM lineal
+function decodeMuLawToPCM(ulawBuffer) {
+    const pcmBuffer = Buffer.alloc(ulawBuffer.length * 2); // Cada muestra PCM ocupa 2 bytes
+    for (let i = 0; i < ulawBuffer.length; i++) {
+        const pcmValue = MULAW_DECODE_TABLE[ulawBuffer[i]];
+        pcmBuffer.writeInt16LE(pcmValue, i * 2); // Escribe el valor PCM como Int16LE
+    }
+    return pcmBuffer;
 }
 
 // Endpoint para descargar audio
