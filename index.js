@@ -52,9 +52,7 @@ wss.on('connection', (ws, req) => {
     session.fileStreamRAW.end();
     logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
     
-    const rawAudioData = fs.readFileSync(path.join(AUDIO_DIR, `${sessionId}.raw`));
-    const wavData = addWavHeader(rawAudioData, 8000, 1, 8);
-    fs.writeFileSync(path.join(AUDIO_DIR, `${sessionId}.wav`), wavData);
+    transformToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
   }
 
   delete sessions[sessionId];
@@ -205,38 +203,57 @@ function handleClose(ws, msg) {
   logMessage('Closed enviado');
 }
 
-
-
-// Función para agregar encabezado WAV a un archivo .raw
-function addWavHeader(rawData, sampleRate, numChannels, bitDepth) {
-  const header = Buffer.alloc(44);
+// Configuración del encabezado WAV
+const wavHeader = (dataSize, sampleRate, numChannels, bitsPerSample) => {
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
   
-  // "RIFF" chunk descriptor
-  header.write('RIFF', 0);
-  const fileSize = 36 + rawData.length; // 36 + tamaño de los datos de audio
-  header.writeUInt32LE(fileSize, 4);
-  header.write('WAVE', 8);
+  return Buffer.concat([
+      Buffer.from('RIFF'), // chunkID
+      Buffer.alloc(4), // chunkSize (se llenará después)
+      Buffer.from('WAVE'), // format
+      Buffer.from('fmt '), // subChunk1ID
+      Buffer.from([0x12, 0x00, 0x00, 0x00]), // subChunk1Size (18 bytes para extensiones)
+      Buffer.from([0x07, 0x00]), // compression (7)
+      Buffer.from([numChannels, 0x00]), // numChannels (1)
+      Buffer.alloc(4, sampleRate), // sampleRate (8000)
+      Buffer.alloc(4, byteRate), // byteRate
+      Buffer.from([blockAlign, 0x00]), // blockAlign
+      Buffer.from([bitsPerSample, 0x00]), // bitsPerSample
+      Buffer.from([0x00, 0x00]), // ExtraParamSize
+      Buffer.from('data'), // subChunk2ID
+      Buffer.alloc(4, dataSize) // subChunk2Size
+  ]);
+};
+
+function transformToWav(inputFilePath, outputFilePath){
+  // Leer datos del archivo RAW
+  fs.readFile(inputFilePath, (err, rawData) => {
+    if (err) {
+        logMessage('Error al leer el archivo RAW:', err);
+        return;
+    }
   
-  // "fmt " subchunk
-  header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16); // Subchunk size
-  header.writeUInt16LE(0x0102, 20);  // Formato u-Law (0x0102)
-  header.writeUInt16LE(numChannels, 22); // Número de canales (1 para mono)
-  header.writeUInt32LE(sampleRate, 24); // Tasa de muestreo
-  header.writeUInt32LE(sampleRate * numChannels * bitDepth / 8, 28); // Byte rate
-  header.writeUInt16LE(numChannels * bitDepth / 8, 32); // Block align
-  header.writeUInt16LE(bitDepth, 34); // Depth (8 bits para u-Law)
-
-  // "data" subchunk
-  header.write('data', 36);
-  header.writeUInt32LE(rawData.length, 40);
-
-  // Crear un archivo con el encabezado y los datos
-  const output = Buffer.concat([header, rawData]);
-
-  return output;
+    const dataSize = rawData.length;
+    const header = wavHeader(dataSize, 8000, 1, 8); // Configuración del encabezado
+  
+    // Actualizar chunkSize
+    const chunkSize = header.length + dataSize - 8; // Tamaño total menos "RIFF" y "WAVE"
+    header.writeUInt32LE(chunkSize, 4);
+  
+    // Combinar encabezado y datos
+    const wavData = Buffer.concat([header, rawData]);
+  
+    // Escribir archivo WAV
+    fs.writeFile(outputFilePath, wavData, (err) => {
+        if (err) {
+            logMessage('Error al escribir el archivo WAV:', err);
+            return;
+        }
+        logMessage('Archivo WAV generado correctamente:', outputFilePath);
+    });
+  });
 }
-
 
 // Endpoint para descargar audio
 app.get('/archivo/:id', (req, res) => {
