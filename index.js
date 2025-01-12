@@ -71,7 +71,7 @@ function handleMessage(ws, message) {
 
     if (msg.serverseq === 3) {
       // Ruta del archivo de audio
-      const audioFilePath = "response_audio.wav";
+      const audioFilePath = "HolaSoyElBot.wav";
       // Leer el archivo de audio
       const audioData = fs.readFileSync(audioFilePath)
       ws.send(audioData, (err) => {
