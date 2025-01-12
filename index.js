@@ -68,7 +68,22 @@ function handleMessage(ws, message) {
 
     const session = sessions[sessionId];
 
-    if (msg.serverseq >= 6) {
+
+    if (msg.serverseq === 3) {
+      // Ruta del archivo de audio
+      const audioFilePath = "response_audio.wav";
+      // Leer el archivo de audio
+      const audioData = fs.readFileSync(audioFilePath)
+      ws.send(audioData, (err) => {
+        if (err) {
+          logMessage(`Error enviando archivo de audio: ${err}`);
+        } else {
+          logMessage(`Archivo de audio enviado: ${audioFilePath}`);
+        }
+      });
+    }
+
+    if (msg.serverseq === 6) {
       logMessage(`Serverseq: ${msg.serverseq} --- Probando disconnect`);
       const disconnect = {
         version: '2',
