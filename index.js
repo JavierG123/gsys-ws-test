@@ -51,7 +51,10 @@ wss.on('connection', (ws, req) => {
     if (session.fileStreamRAW) {
     session.fileStreamRAW.end();
     logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
-    addWavHeader(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
+    
+    const rawAudioData = fs.readFileSync(path.join(AUDIO_DIR, `${sessionId}.raw`));
+    const wavData = addWavHeader(rawAudioData, 8000, 1, 8);
+    fs.writeFileSync(path.join(AUDIO_DIR, `${sessionId}.wav`), wavData);
   }
 
   delete sessions[sessionId];
@@ -117,6 +120,8 @@ function handleMessage(ws, message) {
       case 'close':
         handleClose(ws, msg);
         break;
+      case 'dtmf':
+        handleDTMF(wav, msg);
       default:
         logMessage(`Tipo de mensaje desconocido: ${msg.type} --- ${JSON.stringify(msg)}`);
     }
@@ -130,11 +135,17 @@ function handleBinaryData(ws, data) {
   if (sessionId) {
     const session = sessions[sessionId];
     session.fileStreamRAW.write(data);
-
+    
   } else {
     logMessage('Datos binarios recibidos sin sesión activa.');
   }
 }
+
+function handleDTMF(ws, msg) {
+  logMessage('DTMF recibido');
+  logMessage(`DTMF: ${msg.parameters.digit}`);
+}
+
 
 function handleOpen(ws, msg) {
   logMessage('Open recibido');
@@ -195,44 +206,35 @@ function handleClose(ws, msg) {
 }
 
 
-function createWavHeader(dataSize) {
-  const header = Buffer.alloc(44); // Tamaño del header WAV estándar
 
-  // "RIFF" Chunk Descriptor
-  header.write('RIFF', 0); // Identificador
-  header.writeUInt32LE(36 + dataSize, 4); // Tamaño total del archivo (header + datos)
-  header.write('WAVE', 8); // Tipo de archivo
+// Función para agregar encabezado WAV a un archivo .raw
+function addWavHeader(rawData, sampleRate, numChannels, bitDepth) {
+  const header = Buffer.alloc(44);
   
-  // "fmt " Subchunk
-  header.write('fmt ', 12); // Subchunk ID
-  header.writeUInt32LE(16, 16); // Tamaño del subchunk (16 para PCM)
-  header.writeUInt16LE(0x0101, 20); // Formato (u-Law, 0x0101)
-  header.writeUInt16LE(1, 22); // Número de canales (mono)
-  header.writeUInt32LE(8000, 24); // Frecuencia de muestreo (8000 Hz)
-  header.writeUInt32LE(64000, 28); // Byte rate (8000 Hz * 1 canal * 8 bits / 8)
-  header.writeUInt16LE(1, 32); // Block align (1 byte por muestra)
-  header.writeUInt16LE(8, 34); // Bits por muestra (8 bits para u-Law)
+  // "RIFF" chunk descriptor
+  header.write('RIFF', 0);
+  const fileSize = 36 + rawData.length; // 36 + tamaño de los datos de audio
+  header.writeUInt32LE(fileSize, 4);
+  header.write('WAVE', 8);
+  
+  // "fmt " subchunk
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16); // Subchunk size
+  header.writeUInt16LE(1, 20);  // PCM format (1 for linear pulse code modulation)
+  header.writeUInt16LE(numChannels, 22); // Número de canales (1 para mono)
+  header.writeUInt32LE(sampleRate, 24); // Tasa de muestreo
+  header.writeUInt32LE(sampleRate * numChannels * bitDepth / 8, 28); // Byte rate
+  header.writeUInt16LE(numChannels * bitDepth / 8, 32); // Block align
+  header.writeUInt16LE(bitDepth, 34); // Depth (8 bits para u-Law)
 
-  // "data" Subchunk
-  header.write('data', 36); // Subchunk ID
-  header.writeUInt32LE(dataSize, 40); // Tamaño de los datos (no el total del archivo)
+  // "data" subchunk
+  header.write('data', 36);
+  header.writeUInt32LE(rawData.length, 40);
 
-  return header;
-}
+  // Crear un archivo con el encabezado y los datos
+  const output = Buffer.concat([header, rawData]);
 
-function addWavHeader(inputFile, outputFile) {
-  fs.readFile(inputFile, (err, rawData) => {
-    if (err) throw err;
-
-    const header = createWavHeader(rawData.length);
-
-    const wavData = Buffer.concat([header, rawData]);
-
-    fs.writeFile(outputFile, wavData, (err) => {
-      if (err) throw err;
-      logMessage(`Archivo WAV generado en: ${outputFile}`);
-    });
-  });
+  return output;
 }
 
 
