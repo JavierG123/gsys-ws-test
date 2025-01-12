@@ -55,7 +55,6 @@ function handleMessage(ws, message) {
     const sessionId = msg.id;
 
     if (!sessions[sessionId]) {
-      //const fileStream = fs.createWriteStream(path.join(AUDIO_DIR, `${sessionId}.raw`), { flags: 'w' });
       const fileStream = fs.createWriteStream(path.join(AUDIO_DIR, `${sessionId}.wav`));
       // Crear el escritor WAV
       const wavWriter = new wav.Writer({
@@ -64,11 +63,29 @@ function handleMessage(ws, message) {
         bitDepth: 8,          // Profundidad de bits
       });
       wavWriter.pipe(fileStream);
-      sessions[sessionId] = { seq: 1, fileStream, wavWriter, pongSent: false, ws };
-      //sessions[sessionId] = { seq: 1, audioChunks: [], pongSent: false, ws , eventSent: false};
+      sessions[sessionId] = { seq: 1, fileStream, wavWriter, ws };
     }
 
     const session = sessions[sessionId];
+
+    if (msg.serverseq <= 6) {
+      logMessage(`Serverseq: ${msg.serverseq} --- Probando disconnect`);
+      const disconnect = {
+        version: '2',
+        type: 'disconnect',
+        seq: session.seq++,
+        clientseq: msg.seq,
+        id: sessionId,
+        parameters: {
+          reason: "completed",
+          outputVariables: {
+            OutputVariable: "Retorno del bot"
+          }
+        }
+      }
+      ws.send(JSON.stringify(disconnect));
+      logMessage('Disconnect enviado');
+    }
 
     switch (msg.type) {
       case 'open':
@@ -92,10 +109,8 @@ function handleBinaryData(ws, data) {
   const sessionId = Object.keys(sessions).find(id => sessions[id].ws === ws);
   if (sessionId) {
     const session = sessions[sessionId];
-    const pcmData = decodeMuLawToPCM(data);
-    session.wavWriter.write(pcmData);
-    //session.fileStream.write(data);
-    //sessions[sessionId].audioChunks.push(data);
+    session.wavWriter.write(data);
+
   } else {
     logMessage('Datos binarios recibidos sin sesión activa.');
   }
@@ -139,32 +154,6 @@ function handlePing(ws, msg) {
 
   ws.send(JSON.stringify(pongResponse));
   logMessage('Pong enviado');
-  session.pongSent = true;
-
-  // if(session.eventSent === false){
-  //   // Enviar evento adicional con el primer pong
-  //   const eventResponse = {
-  //     version: '2',
-  //     type: 'event',
-  //     seq: session.seq++,
-  //     serverseq: msg.seq,
-  //     id: sessionId,
-  //     parameters: {
-  //       entities: [
-  //         {
-  //           type: 'OutputVariable',
-  //           data: {
-  //             OutputVariable: 'PruebaDesdeBot',
-  //           },
-  //         },
-  //       ],
-  //     },
-  //   };
-
-  //   ws.send(JSON.stringify(eventResponse));
-  //   session.eventSent = true;
-  //   logMessage('Evento enviado');
-  // }
 }
 
 function handleClose(ws, msg) {
@@ -186,43 +175,11 @@ function handleClose(ws, msg) {
 
   // Cerrar el archivo y eliminar la sesión
   if (session.fileStream) {
-    //session.fileStream.end(); // Finaliza la escritura en el archivo
     session.wavWriter.end();
     logMessage(`Archivo binario puro guardado en ${path.join(AUDIO_DIR, `${sessionId}.wav --- ${sessionId}`)}`);
   }
-  // // Guardar el audio en un archivo WAV
-  // const audioFilePath = path.join(AUDIO_DIR, `${sessionId}.wav`);
-  // fs.writeFileSync(audioFilePath, Buffer.concat(session.audioChunks));
-  // logMessage(`Audio guardado en ${audioFilePath} --- ${sessionId}`);
 
   delete sessions[sessionId];
-}
-
-// Tabla de descompresión de u-Law a PCM lineal (G.711 estándar)
-const MULAW_DECODE_TABLE = new Int16Array(256);
-
-function generateMuLawDecodeTable() {
-    for (let i = 0; i < 256; i++) {
-        let muLawByte = ~i; // Invertir los bits
-        let sign = (muLawByte & 0x80) ? -1 : 1;
-        let exponent = (muLawByte >> 4) & 0x07;
-        let mantissa = muLawByte & 0x0F;
-        let magnitude = ((0x21 << exponent) + (mantissa << (exponent + 3))) - 0x84;
-        MULAW_DECODE_TABLE[i] = sign * magnitude;
-    }
-}
-
-// Llama a esta función al inicializar tu aplicación para llenar la tabla
-generateMuLawDecodeTable();
-
-// Función para decodificar un buffer de u-Law a PCM lineal
-function decodeMuLawToPCM(ulawBuffer) {
-    const pcmBuffer = Buffer.alloc(ulawBuffer.length * 2); // Cada muestra PCM ocupa 2 bytes
-    for (let i = 0; i < ulawBuffer.length; i++) {
-        const pcmValue = MULAW_DECODE_TABLE[ulawBuffer[i]];
-        pcmBuffer.writeInt16LE(pcmValue, i * 2); // Escribe el valor PCM como Int16LE
-    }
-    return pcmBuffer;
 }
 
 // Endpoint para descargar audio
