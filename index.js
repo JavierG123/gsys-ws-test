@@ -50,6 +50,7 @@ wss.on('connection', (ws, req) => {
 function handleMessage(ws, message) {
   try {
     const msg = JSON.parse(message);
+    logMessage(`Mensaje recibido: ${JSON.stringify(msg)}`);
     const sessionId = msg.id;
 
     if (!sessions[sessionId]) {
