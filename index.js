@@ -48,11 +48,10 @@ wss.on('connection', (ws, req) => {
     const sessionId = Object.keys(sessions).find(id => sessions[id].ws === ws);
     const session = sessions[sessionId];
     // Cerrar el archivo y eliminar la sesión
-    if (session.wavWriter) {
-    session.wavWriter.end();
-    logMessage(`Archivo guardado en ${path.join(AUDIO_DIR, `${sessionId}.wav --- ${sessionId}`)}`);
+    if (session.fileStreamRAW) {
     session.fileStreamRAW.end();
-    logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.wav --- ${sessionId}`)}`);
+    logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
+    addWavHeader(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
   }
 
   delete sessions[sessionId];
@@ -67,17 +66,9 @@ function handleMessage(ws, message) {
     const sessionId = msg.id;
 
     if (!sessions[sessionId]) {
-      const fileStream = fs.createWriteStream(path.join(AUDIO_DIR, `${sessionId}.wav`));
       // Abrir un archivo en modo escritura binaria
       const fileStreamRAW = fs.createWriteStream(path.join(AUDIO_DIR, `${sessionId}.raw`), { flags: 'w', encoding: null });
-      // Crear el escritor WAV
-      const wavWriter = new wav.Writer({
-        channels: 1,          // Mono
-        sampleRate: 8000,     // Frecuencia de muestreo
-        bitDepth: 16,          // Profundidad de bits
-      });
-      wavWriter.pipe(fileStream);
-      sessions[sessionId] = { seq: 1, fileStream, fileStreamRAW, wavWriter, ws };
+      sessions[sessionId] = { seq: 1, fileStreamRAW, ws };
     }
 
     const session = sessions[sessionId];
@@ -138,8 +129,6 @@ function handleBinaryData(ws, data) {
   const sessionId = Object.keys(sessions).find(id => sessions[id].ws === ws);
   if (sessionId) {
     const session = sessions[sessionId];
-    const pcmBuffer = ulawToPcm(data);
-    session.wavWriter.write(pcmBuffer);
     session.fileStreamRAW.write(data);
 
   } else {
@@ -203,35 +192,50 @@ function handleClose(ws, msg) {
 
   ws.send(JSON.stringify(response));
   logMessage('Closed enviado');
-
-  // // Cerrar el archivo y eliminar la sesión
-  // if (session.wavWriter) {
-  //   session.wavWriter.end();
-  //   logMessage(`Archivo guardado en ${path.join(AUDIO_DIR, `${sessionId}.wav --- ${sessionId}`)}`);
-  // }
-
-  //delete sessions[sessionId];
 }
 
 
-// u-Law to PCM conversion function
-function ulawToPcm(ulawData) {
-  const pcmData = [];
-  for (let i = 0; i < ulawData.length; i++) {
-    const u = ulawData[i];
-    const sign = (u >> 7) & 0x01;
-    const exponent = (u >> 4) & 0x07;
-    const mantissa = u & 0x0f;
+function createWavHeader(dataSize) {
+  const header = Buffer.alloc(44); // Tamaño del header WAV estándar
 
-    const sample = ((mantissa << 4) | 0x08) << (exponent + 3);
-    const pcmValue = sign ? -sample : sample;
+  // "RIFF" Chunk Descriptor
+  header.write('RIFF', 0); // Identificador
+  header.writeUInt32LE(36 + dataSize, 4); // Tamaño total del archivo (header + datos)
+  header.write('WAVE', 8); // Tipo de archivo
+  
+  // "fmt " Subchunk
+  header.write('fmt ', 12); // Subchunk ID
+  header.writeUInt32LE(16, 16); // Tamaño del subchunk (16 para PCM)
+  header.writeUInt16LE(0x0101, 20); // Formato (u-Law, 0x0101)
+  header.writeUInt16LE(1, 22); // Número de canales (mono)
+  header.writeUInt32LE(8000, 24); // Frecuencia de muestreo (8000 Hz)
+  header.writeUInt32LE(64000, 28); // Byte rate (8000 Hz * 1 canal * 8 bits / 8)
+  header.writeUInt16LE(1, 32); // Block align (1 byte por muestra)
+  header.writeUInt16LE(8, 34); // Bits por muestra (8 bits para u-Law)
 
-    // Push the PCM value (16-bit signed little-endian)
-    pcmData.push(pcmValue & 0xff);
-    pcmData.push((pcmValue >> 8) & 0xff);
-  }
-  return Buffer.from(pcmData);
+  // "data" Subchunk
+  header.write('data', 36); // Subchunk ID
+  header.writeUInt32LE(dataSize, 40); // Tamaño de los datos
+
+  return header;
 }
+
+
+function addWavHeader(inputFile, outputFile) {
+  fs.readFile(inputFile, (err, rawData) => {
+    if (err) throw err;
+
+    const header = createWavHeader(rawData.length);
+
+    const wavData = Buffer.concat([header, rawData]);
+
+    fs.writeFile(outputFile, wavData, (err) => {
+      if (err) throw err;
+      logMessage(`Archivo WAV generado en: ${outputFile}`);
+    });
+  });
+}
+
 
 // Endpoint para descargar audio
 app.get('/archivo/:id', (req, res) => {
