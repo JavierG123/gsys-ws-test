@@ -120,7 +120,7 @@ function handlePing(ws, msg) {
     id: sessionId,
     parameters: {},
   };
-
+  
   ws.send(JSON.stringify(pongResponse));
   logMessage('Pong enviado');
   session.pongSent = true;
@@ -134,14 +134,9 @@ function handlePing(ws, msg) {
       serverseq: msg.seq,
       id: sessionId,
       parameters: {
-        entities: [
-          {
-            type: 'example',
-            data: {
-              OutputVariable: 'PruebaDesdeBot',
-            },
-          },
-        ],
+        outputVariables: {
+          OutputVariable: 'PruebaDesdeBot'
+        }
       },
     };
   
