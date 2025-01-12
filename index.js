@@ -69,7 +69,7 @@ function handleMessage(ws, message) {
         handleClose(ws, msg);
         break;
       default:
-        logMessage(`Tipo de mensaje desconocido: ${msg.type}`);
+        logMessage(`Tipo de mensaje desconocido: ${msg.type} --- ${JSON.stringify(msg)}`);
     }
   } catch (err) {
     logMessage(`Error procesando mensaje: ${err}`);
@@ -86,6 +86,7 @@ function handleBinaryData(ws, data) {
 }
 
 function handleOpen(ws, msg) {
+  logMessage('Open recibido');
   const sessionId = msg.id;
   const session = sessions[sessionId];
 
@@ -102,9 +103,11 @@ function handleOpen(ws, msg) {
   };
 
   ws.send(JSON.stringify(response));
+  logMessage('Opened Enviado');
 }
 
 function handlePing(ws, msg) {
+  logMessage('Ping recibido');
   const sessionId = msg.id;
   const session = sessions[sessionId];
 
@@ -118,6 +121,7 @@ function handlePing(ws, msg) {
   };
 
   ws.send(JSON.stringify(pongResponse));
+  logMessage('Pong enviado');
   session.pongSent = true;
 
   if(session.eventSent === false){
@@ -142,10 +146,12 @@ function handlePing(ws, msg) {
   
     ws.send(JSON.stringify(eventResponse));
     session.eventSent = true;
+    logMessage('Evento enviado');
   }
 }
 
 function handleClose(ws, msg) {
+  logMessage('Close recibido');
   const sessionId = msg.id;
   const session = sessions[sessionId];
 
@@ -159,6 +165,8 @@ function handleClose(ws, msg) {
   };
 
   ws.send(JSON.stringify(response));
+  logMessage('Closed enviado');
+  
 
   // Guardar el audio en un archivo WAV
   const audioFilePath = path.join(AUDIO_DIR, `${sessionId}.wav`);
