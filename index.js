@@ -220,7 +220,7 @@ function addWavHeader(rawData, sampleRate, numChannels, bitDepth) {
   // "fmt " subchunk
   header.write('fmt ', 12);
   header.writeUInt32LE(16, 16); // Subchunk size
-  header.writeUInt16LE(1, 20);  // PCM format (1 for linear pulse code modulation)
+  header.writeUInt16LE(0x0102, 20);  // Formato u-Law (0x0102)
   header.writeUInt16LE(numChannels, 22); // Número de canales (1 para mono)
   header.writeUInt32LE(sampleRate, 24); // Tasa de muestreo
   header.writeUInt32LE(sampleRate * numChannels * bitDepth / 8, 28); // Byte rate
