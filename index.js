@@ -60,7 +60,7 @@ function handleMessage(ws, message) {
       const wavWriter = new wav.Writer({
         channels: 1,          // Mono
         sampleRate: 8000,     // Frecuencia de muestreo
-        bitDepth: 8,          // Profundidad de bits
+        bitDepth: 16,          // Profundidad de bits
       });
       wavWriter.pipe(fileStream);
       sessions[sessionId] = { seq: 1, fileStream, wavWriter, ws };
@@ -124,7 +124,8 @@ function handleBinaryData(ws, data) {
   const sessionId = Object.keys(sessions).find(id => sessions[id].ws === ws);
   if (sessionId) {
     const session = sessions[sessionId];
-    session.wavWriter.write(data);
+    const pcmBuffer = ulawToPcm(data);
+    session.wavWriter.write(pcmBuffer);
 
   } else {
     logMessage('Datos binarios recibidos sin sesión activa.');
@@ -195,6 +196,26 @@ function handleClose(ws, msg) {
   }
 
   delete sessions[sessionId];
+}
+
+
+// u-Law to PCM conversion function
+function ulawToPcm(ulawData) {
+  const pcmData = [];
+  for (let i = 0; i < ulawData.length; i++) {
+    const u = ulawData[i];
+    const sign = (u >> 7) & 0x01;
+    const exponent = (u >> 4) & 0x07;
+    const mantissa = u & 0x0f;
+
+    const sample = ((mantissa << 4) | 0x08) << (exponent + 3);
+    const pcmValue = sign ? -sample : sample;
+
+    // Push the PCM value (16-bit signed little-endian)
+    pcmData.push(pcmValue & 0xff);
+    pcmData.push((pcmValue >> 8) & 0xff);
+  }
+  return Buffer.from(pcmData);
 }
 
 // Endpoint para descargar audio
