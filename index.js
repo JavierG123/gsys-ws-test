@@ -205,10 +205,10 @@ function handleClose(ws, msg) {
 
 // Configuración del encabezado WAV
 const wavHeader = (dataSize, sampleRate, numChannels, bitsPerSample) => {
-  const byteRate = sampleRate * numChannels * (bitsPerSample / 8); // Correcto cálculo
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8); // Cálculo correcto del byteRate
   const blockAlign = numChannels * (bitsPerSample / 8); // Tamaño por bloque (1 en este caso)
 
-  const header = Buffer.alloc(44); // El tamaño fijo de un encabezado WAV estándar
+  const header = Buffer.alloc(44); // Tamaño correcto del encabezado WAV estándar
 
   // Escribir datos del encabezado
   header.write('RIFF', 0); // chunkID
@@ -222,7 +222,7 @@ const wavHeader = (dataSize, sampleRate, numChannels, bitsPerSample) => {
   header.writeUInt32LE(byteRate, 28); // byteRate
   header.writeUInt16LE(blockAlign, 32); // blockAlign
   header.writeUInt16LE(bitsPerSample, 34); // bitsPerSample
-  header.writeUInt16LE(0, 36); // ExtraParamSize
+  header.writeUInt16LE(0, 36); // ExtraParamSize (nulo)
   header.write('data', 38); // subChunk2ID
   header.writeUInt32LE(dataSize, 42); // subChunk2Size
 
@@ -230,11 +230,10 @@ const wavHeader = (dataSize, sampleRate, numChannels, bitsPerSample) => {
 };
 
 function transformToWav(inputFilePath, outputFilePath) {
-  // Leer datos del archivo RAW
   fs.readFile(inputFilePath, (err, rawData) => {
     if (err) {
-      console.error('Error al leer el archivo RAW:', err);
-      return;
+        console.error('Error al leer el archivo RAW:', err);
+        return;
     }
 
     const dataSize = rawData.length;
@@ -245,13 +244,13 @@ function transformToWav(inputFilePath, outputFilePath) {
 
     // Escribir archivo WAV
     fs.writeFile(outputFilePath, wavData, (err) => {
-      if (err) {
-        console.error('Error al escribir el archivo WAV:', err);
-        return;
-      }
-      console.log('Archivo WAV generado correctamente:', outputFilePath);
+        if (err) {
+            console.error('Error al escribir el archivo WAV:', err);
+            return;
+        }
+        console.log('Archivo WAV generado correctamente:', outputFilePath);
     });
-  });
+});
 }
 
 // Endpoint para descargar audio
