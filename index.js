@@ -49,13 +49,13 @@ wss.on('connection', (ws, req) => {
     const session = sessions[sessionId];
     // Cerrar el archivo y eliminar la sesión
     if (session.fileStreamRAW) {
-    session.fileStreamRAW.end();
-    logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
-    
-    transformToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
-  }
+      session.fileStreamRAW.end();
+      logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
 
-  delete sessions[sessionId];
+      transformToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
+    }
+
+    delete sessions[sessionId];
 
   });
 });
@@ -133,7 +133,7 @@ function handleBinaryData(ws, data) {
   if (sessionId) {
     const session = sessions[sessionId];
     session.fileStreamRAW.write(data);
-    
+
   } else {
     logMessage('Datos binarios recibidos sin sesión activa.');
   }
@@ -205,52 +205,51 @@ function handleClose(ws, msg) {
 
 // Configuración del encabezado WAV
 const wavHeader = (dataSize, sampleRate, numChannels, bitsPerSample) => {
-  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
-  const blockAlign = numChannels * (bitsPerSample / 8);
-  
-  return Buffer.concat([
-      Buffer.from('RIFF'), // chunkID
-      Buffer.alloc(4), // chunkSize (se llenará después)
-      Buffer.from('WAVE'), // format
-      Buffer.from('fmt '), // subChunk1ID
-      Buffer.from([0x12, 0x00, 0x00, 0x00]), // subChunk1Size (18 bytes para extensiones)
-      Buffer.from([0x07, 0x00]), // compression (7)
-      Buffer.from([numChannels, 0x00]), // numChannels (1)
-      Buffer.alloc(4, sampleRate), // sampleRate (8000)
-      Buffer.alloc(4, byteRate), // byteRate
-      Buffer.from([blockAlign, 0x00]), // blockAlign
-      Buffer.from([bitsPerSample, 0x00]), // bitsPerSample
-      Buffer.from([0x00, 0x00]), // ExtraParamSize
-      Buffer.from('data'), // subChunk2ID
-      Buffer.alloc(4, dataSize) // subChunk2Size
-  ]);
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8); // Correcto cálculo
+  const blockAlign = numChannels * (bitsPerSample / 8); // Tamaño por bloque (1 en este caso)
+
+  const header = Buffer.alloc(44); // El tamaño fijo de un encabezado WAV estándar
+
+  // Escribir datos del encabezado
+  header.write('RIFF', 0); // chunkID
+  header.writeUInt32LE(36 + dataSize, 4); // chunkSize
+  header.write('WAVE', 8); // format
+  header.write('fmt ', 12); // subChunk1ID
+  header.writeUInt32LE(18, 16); // subChunk1Size (18 bytes para formato extendido)
+  header.writeUInt16LE(7, 20); // compression (7 = μ-law)
+  header.writeUInt16LE(numChannels, 22); // numChannels
+  header.writeUInt32LE(sampleRate, 24); // sampleRate
+  header.writeUInt32LE(byteRate, 28); // byteRate
+  header.writeUInt16LE(blockAlign, 32); // blockAlign
+  header.writeUInt16LE(bitsPerSample, 34); // bitsPerSample
+  header.writeUInt16LE(0, 36); // ExtraParamSize
+  header.write('data', 38); // subChunk2ID
+  header.writeUInt32LE(dataSize, 42); // subChunk2Size
+
+  return header;
 };
 
-function transformToWav(inputFilePath, outputFilePath){
+function transformToWav(inputFilePath, outputFilePath) {
   // Leer datos del archivo RAW
   fs.readFile(inputFilePath, (err, rawData) => {
     if (err) {
-        logMessage('Error al leer el archivo RAW:', err);
-        return;
+      console.error('Error al leer el archivo RAW:', err);
+      return;
     }
-  
+
     const dataSize = rawData.length;
     const header = wavHeader(dataSize, 8000, 1, 8); // Configuración del encabezado
-  
-    // Actualizar chunkSize
-    const chunkSize = header.length + dataSize - 8; // Tamaño total menos "RIFF" y "WAVE"
-    header.writeUInt32LE(chunkSize, 4);
-  
+
     // Combinar encabezado y datos
     const wavData = Buffer.concat([header, rawData]);
-  
+
     // Escribir archivo WAV
     fs.writeFile(outputFilePath, wavData, (err) => {
-        if (err) {
-            logMessage('Error al escribir el archivo WAV:', err);
-            return;
-        }
-        logMessage('Archivo WAV generado correctamente:', outputFilePath);
+      if (err) {
+        console.error('Error al escribir el archivo WAV:', err);
+        return;
+      }
+      console.log('Archivo WAV generado correctamente:', outputFilePath);
     });
   });
 }
