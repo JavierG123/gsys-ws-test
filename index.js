@@ -54,7 +54,9 @@ function handleMessage(ws, message) {
     const sessionId = msg.id;
 
     if (!sessions[sessionId]) {
-      sessions[sessionId] = { seq: 1, audioChunks: [], pongSent: false, ws , eventSent: false};
+      const fileStream = fs.createWriteStream(path.join(AUDIO_DIR, `${sessionId}.raw`), { flags: 'w' });
+      sessions[sessionId] = { seq: 1, fileStream, pongSent: false, ws };
+      //sessions[sessionId] = { seq: 1, audioChunks: [], pongSent: false, ws , eventSent: false};
     }
 
     const session = sessions[sessionId];
@@ -80,7 +82,9 @@ function handleMessage(ws, message) {
 function handleBinaryData(ws, data) {
   const sessionId = Object.keys(sessions).find(id => sessions[id].ws === ws);
   if (sessionId) {
-    sessions[sessionId].audioChunks.push(data);
+    const session = sessions[sessionId];
+    session.fileStream.write(data);
+    //sessions[sessionId].audioChunks.push(data);
   } else {
     logMessage('Datos binarios recibidos sin sesión activa.');
   }
@@ -168,11 +172,15 @@ function handleClose(ws, msg) {
   ws.send(JSON.stringify(response));
   logMessage('Closed enviado');
   
-
-  // Guardar el audio en un archivo WAV
-  const audioFilePath = path.join(AUDIO_DIR, `${sessionId}.wav`);
-  fs.writeFileSync(audioFilePath, Buffer.concat(session.audioChunks));
-  logMessage(`Audio guardado en ${audioFilePath} --- ${sessionId}`);
+  // Cerrar el archivo y eliminar la sesión
+  if (session.fileStream) {
+    session.fileStream.end(); // Finaliza la escritura en el archivo
+    logMessage(`Archivo binario puro guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
+  }
+  // // Guardar el audio en un archivo WAV
+  // const audioFilePath = path.join(AUDIO_DIR, `${sessionId}.wav`);
+  // fs.writeFileSync(audioFilePath, Buffer.concat(session.audioChunks));
+  // logMessage(`Audio guardado en ${audioFilePath} --- ${sessionId}`);
 
   delete sessions[sessionId];
 }
