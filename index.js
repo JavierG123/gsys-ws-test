@@ -215,11 +215,10 @@ function createWavHeader(dataSize) {
 
   // "data" Subchunk
   header.write('data', 36); // Subchunk ID
-  header.writeUInt32LE(dataSize, 40); // Tamaño de los datos
+  header.writeUInt32LE(dataSize, 40); // Tamaño de los datos (no el total del archivo)
 
   return header;
 }
-
 
 function addWavHeader(inputFile, outputFile) {
   fs.readFile(inputFile, (err, rawData) => {
