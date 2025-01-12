@@ -102,7 +102,7 @@ function handleBinaryData(ws, data) {
 
 function handleOpen(ws, msg) {
   logMessage('Open recibido');
-  logMessage(`Media: ${JSON.stringify(vamsg.parameters.media)}`);
+  logMessage(`Media: ${JSON.stringify(msg.parameters.media)}`);
   const sessionId = msg.id;
   const session = sessions[sessionId];
 
