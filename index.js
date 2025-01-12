@@ -68,7 +68,7 @@ function handleMessage(ws, message) {
 
     const session = sessions[sessionId];
 
-    if (msg.serverseq <= 6) {
+    if (msg.serverseq >= 6) {
       logMessage(`Serverseq: ${msg.serverseq} --- Probando disconnect`);
       const disconnect = {
         version: '2',
