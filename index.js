@@ -51,6 +51,8 @@ wss.on('connection', (ws, req) => {
     if (session.wavWriter) {
     session.wavWriter.end();
     logMessage(`Archivo guardado en ${path.join(AUDIO_DIR, `${sessionId}.wav --- ${sessionId}`)}`);
+    session.fileStreamRAW.end();
+    logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.wav --- ${sessionId}`)}`);
   }
 
   delete sessions[sessionId];
@@ -66,6 +68,8 @@ function handleMessage(ws, message) {
 
     if (!sessions[sessionId]) {
       const fileStream = fs.createWriteStream(path.join(AUDIO_DIR, `${sessionId}.wav`));
+      // Abrir un archivo en modo escritura binaria
+      const fileStreamRAW = fs.createWriteStream(path.join(AUDIO_DIR, `${sessionId}.raw`), { flags: 'w', encoding: null });
       // Crear el escritor WAV
       const wavWriter = new wav.Writer({
         channels: 1,          // Mono
@@ -73,7 +77,7 @@ function handleMessage(ws, message) {
         bitDepth: 16,          // Profundidad de bits
       });
       wavWriter.pipe(fileStream);
-      sessions[sessionId] = { seq: 1, fileStream, wavWriter, ws };
+      sessions[sessionId] = { seq: 1, fileStream, fileStreamRAW, wavWriter, ws };
     }
 
     const session = sessions[sessionId];
@@ -136,6 +140,7 @@ function handleBinaryData(ws, data) {
     const session = sessions[sessionId];
     const pcmBuffer = ulawToPcm(data);
     session.wavWriter.write(pcmBuffer);
+    session.fileStreamRAW.write(data);
 
   } else {
     logMessage('Datos binarios recibidos sin sesión activa.');
@@ -237,6 +242,16 @@ app.get('/archivo/:id', (req, res) => {
     res.status(404).send('Archivo no encontrado');
   }
 });
+
+app.get('/raw/:id', (req, res) => {
+  const audioFilePath = path.join(AUDIO_DIR, `${req.params.id}.raw`);
+  if (fs.existsSync(audioFilePath)) {
+    res.download(audioFilePath);
+  } else {
+    res.status(404).send('Archivo no encontrado');
+  }
+});
+
 
 // Endpoint para descargar el log
 app.get('/log', (req, res) => {
