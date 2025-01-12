@@ -3,7 +3,6 @@ const WebSocket = require('ws');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { log } = require('console');
 const wav = require('wav');
 
 // Configuración del servidor
@@ -103,7 +102,7 @@ function handleBinaryData(ws, data) {
 
 function handleOpen(ws, msg) {
   logMessage('Open recibido');
-  logMessage(`Media: ${msg.parameters.media}`);
+  logMessage(`Media: ${JSON.stringify(vamsg.parameters.media)}`);
   const sessionId = msg.id;
   const session = sessions[sessionId];
 
@@ -188,7 +187,7 @@ function handleClose(ws, msg) {
   if (session.fileStream) {
     //session.fileStream.end(); // Finaliza la escritura en el archivo
     session.wavWriter.end();
-    logMessage(`Archivo binario puro guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
+    logMessage(`Archivo binario puro guardado en ${path.join(AUDIO_DIR, `${sessionId}.wav --- ${sessionId}`)}`);
   }
   // // Guardar el audio en un archivo WAV
   // const audioFilePath = path.join(AUDIO_DIR, `${sessionId}.wav`);
