@@ -187,7 +187,7 @@ function handleClose(ws, msg) {
 
 // Endpoint para descargar audio
 app.get('/archivo/:id', (req, res) => {
-  const audioFilePath = path.join(AUDIO_DIR, `${req.params.id}.wav`);
+  const audioFilePath = path.join(AUDIO_DIR, `${req.params.id}.raw`);
   if (fs.existsSync(audioFilePath)) {
     res.download(audioFilePath);
   } else {
