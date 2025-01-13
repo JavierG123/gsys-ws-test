@@ -3,7 +3,8 @@ const WebSocket = require('ws');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const wav = require('wav');
+const pcmUtil = require('pcm-util');
+const wavEncoder = require('wav-encoder');
 
 // Configuración del servidor
 const PORT = 8080;
@@ -51,8 +52,7 @@ wss.on('connection', (ws, req) => {
     if (session.fileStreamRAW) {
       session.fileStreamRAW.end();
       logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
-
-      transformToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
+      rawToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
     }
 
     delete sessions[sessionId];
@@ -203,53 +203,48 @@ function handleClose(ws, msg) {
   logMessage('Closed enviado');
 }
 
-// Configuración del encabezado WAV
-const wavHeader = (dataSize, sampleRate, numChannels, bitsPerSample) => {
-  const byteRate = sampleRate * numChannels * (bitsPerSample / 8); // Cálculo correcto del byteRate
-  const blockAlign = numChannels * (bitsPerSample / 8); // Tamaño por bloque (1 en este caso)
+// Helper function to convert uLaw to PCM
+function ulawToPcm(ulawData) {
+  const pcmData = [];
+  for (let i = 0; i < ulawData.length; i++) {
+    const pcmValue = pcmUtil.ulawDecode(ulawData[i]);
+    pcmData.push(pcmValue);
+  }
+  return new Int16Array(pcmData); // Return as 16-bit PCM
+}
 
-  const header = Buffer.alloc(44); // Tamaño correcto del encabezado WAV estándar
+function rawToWav(inputFile, outputFile){
+  // Read the raw uLaw file
+fs.readFile(inputFile, (err, ulawBuffer) => {
+  if (err) {
+    logMessage('Error reading file:', err);
+    return;
+  }
 
-  // Escribir datos del encabezado
-  header.write('RIFF', 0); // chunkID
-  header.writeUInt32LE(36 + dataSize, 4); // chunkSize
-  header.write('WAVE', 8); // format
-  header.write('fmt ', 12); // subChunk1ID
-  header.writeUInt32LE(18, 16); // subChunk1Size (18 bytes para formato extendido)
-  header.writeUInt16LE(7, 20); // compression (7 = μ-law)
-  header.writeUInt16LE(numChannels, 22); // numChannels
-  header.writeUInt32LE(sampleRate, 24); // sampleRate
-  header.writeUInt32LE(byteRate, 28); // byteRate
-  header.writeUInt16LE(blockAlign, 32); // blockAlign
-  header.writeUInt16LE(bitsPerSample, 34); // bitsPerSample
-  header.writeUInt16LE(0, 36); // ExtraParamSize (nulo)
-  header.write('data', 38); // subChunk2ID
-  header.writeUInt32LE(dataSize, 42); // subChunk2Size
+  // Convert uLaw buffer to PCM data
+  const pcmData = ulawToPcm(ulawBuffer);
 
-  return header;
-};
+  // Create WAV format header
+  const wavData = {
+    sampleRate: 8000, // uLaw 8000 Hz
+    channelData: [pcmData], // PCM data for the left channel
+    float: false, // 16-bit PCM is non-floating point
+    bitDepth: 16, // 16-bit PCM
+  };
 
-function transformToWav(inputFilePath, outputFilePath) {
-  fs.readFile(inputFilePath, (err, rawData) => {
-    if (err) {
-        console.error('Error al leer el archivo RAW:', err);
-        return;
-    }
-
-    const dataSize = rawData.length;
-    const header = wavHeader(dataSize, 8000, 1, 8); // Configuración del encabezado
-
-    // Combinar encabezado y datos
-    const wavData = Buffer.concat([header, rawData]);
-
-    // Escribir archivo WAV
-    fs.writeFile(outputFilePath, wavData, (err) => {
-        if (err) {
-            console.error('Error al escribir el archivo WAV:', err);
-            return;
-        }
-        console.log('Archivo WAV generado correctamente:', outputFilePath);
+  // Encode the PCM data into WAV format
+  wavEncoder.encode(wavData).then((encodedWav) => {
+    // Write the WAV data to a file
+    fs.writeFile(outputFile, encodedWav, (err) => {
+      if (err) {
+        logMessage('Error writing WAV file:', err);
+      } else {
+        logMessage('WAV file successfully created as output.wav');
+      }
     });
+  }).catch((error) => {
+    logMessage('Error encoding WAV:', error);
+  });
 });
 }
 
