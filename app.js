@@ -11,7 +11,7 @@ const AUDIO_DIR = path.join(__dirname, 'audio');
 const LOG_FILE = path.join(__dirname, 'server.log');
 
 try {
-  const pythonProcess = spawn('python3', ['converter.py', input_path, output_path]);
+  const pythonProcess = spawn('python', ['converter.py', 'test']);
   pythonProcess.stdout.on('data', (data) => {
     logMessage(`Python exec finish: ${data}`);
   });

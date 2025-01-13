@@ -44,7 +44,7 @@ def convert_raw_to_wav(input_path, output_path):
 
     print(f"Converted to WAV: {output_path}")
     
-if sys.argv[2] == "":
+if sys.argv[2] == "test":
    print("hola")
    sys.stdout.flush()
 else:
