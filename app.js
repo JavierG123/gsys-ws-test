@@ -50,6 +50,7 @@ wss.on('connection', (ws, req) => {
     if (session.fileStreamRAW) {
       session.fileStreamRAW.end();
       logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
+      convertRAWToWav(path.join(AUDIO_DIR, `${sessionId}.raw`),path.join(AUDIO_DIR, `${sessionId}.raw`),path.join(AUDIO_DIR, `${sessionId}.raw`));
     }
 
     delete sessions[sessionId];
@@ -199,6 +200,15 @@ function handleClose(ws, msg) {
 
   ws.send(JSON.stringify(response));
   logMessage('Closed enviado');
+}
+
+function convertRAWToWav(input_path, output_path){
+  logMessage('Enter convertRAWToWav');
+  const spawn = require("child_process").spawn;
+  const pythonProcess = spawn('python', ['converter.py',input_path,output_path]);
+  pythonProcess.stdout.on('data',(data) =>{
+    logMessage(`Python exec finish: ${data}`);
+  });
 }
 
 // Endpoint para descargar audio
