@@ -3,6 +3,7 @@ const WebSocket = require('ws');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { log } = require('console');
 const spawn = require("child_process").spawn;
 
 // Configuración del servidor
@@ -10,14 +11,13 @@ const PORT = 8080;
 const AUDIO_DIR = path.join(__dirname, 'audio');
 const LOG_FILE = path.join(__dirname, 'server.log');
 
-try {
+function tryPython() {
   const pythonProcess = spawn('python3', ['converter.py', 'test']);
   pythonProcess.stdout.on('data', (data) => {
     logMessage(`Python exec finish: ${data}`);
   });
-} catch (e) {
-  logMessage('error: ', e);
 }
+
 
 if (!fs.existsSync(AUDIO_DIR)) {
   fs.mkdirSync(AUDIO_DIR);
@@ -27,6 +27,10 @@ const app = express();
 const server = app.listen(PORT, () => {
   logMessage(`Servidor HTTP escuchando en puerto ${PORT}`);
 });
+
+logMessage('Call tryPython');
+tryPython();
+logMessage('After call tryPython');
 
 const wss = new WebSocket.Server({ server });
 
