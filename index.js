@@ -3,8 +3,6 @@ const WebSocket = require('ws');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const pcmUtil = require('pcm-util');
-const wavEncoder = require('wav-encoder');
 
 // Configuración del servidor
 const PORT = 8080;
@@ -52,7 +50,6 @@ wss.on('connection', (ws, req) => {
     if (session.fileStreamRAW) {
       session.fileStreamRAW.end();
       logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
-      rawToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
     }
 
     delete sessions[sessionId];
@@ -201,51 +198,6 @@ function handleClose(ws, msg) {
 
   ws.send(JSON.stringify(response));
   logMessage('Closed enviado');
-}
-
-// Helper function to convert uLaw to PCM
-function ulawToPcm(ulawData) {
-  const pcmData = [];
-  for (let i = 0; i < ulawData.length; i++) {
-    const pcmValue = pcmUtil.ulawDecode(ulawData[i]);
-    pcmData.push(pcmValue);
-  }
-  return new Int16Array(pcmData); // Return as 16-bit PCM
-}
-
-function rawToWav(inputFile, outputFile){
-  // Read the raw uLaw file
-fs.readFile(inputFile, (err, ulawBuffer) => {
-  if (err) {
-    logMessage('Error reading file:', err);
-    return;
-  }
-
-  // Convert uLaw buffer to PCM data
-  const pcmData = ulawToPcm(ulawBuffer);
-
-  // Create WAV format header
-  const wavData = {
-    sampleRate: 8000, // uLaw 8000 Hz
-    channelData: [pcmData], // PCM data for the left channel
-    float: false, // 16-bit PCM is non-floating point
-    bitDepth: 16, // 16-bit PCM
-  };
-
-  // Encode the PCM data into WAV format
-  wavEncoder.encode(wavData).then((encodedWav) => {
-    // Write the WAV data to a file
-    fs.writeFile(outputFile, encodedWav, (err) => {
-      if (err) {
-        logMessage('Error writing WAV file:', err);
-      } else {
-        logMessage('WAV file successfully created as output.wav');
-      }
-    });
-  }).catch((error) => {
-    logMessage('Error encoding WAV:', error);
-  });
-});
 }
 
 // Endpoint para descargar audio
