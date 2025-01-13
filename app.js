@@ -3,11 +3,21 @@ const WebSocket = require('ws');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const spawn = require("child_process").spawn;
 
 // Configuración del servidor
 const PORT = 8080;
 const AUDIO_DIR = path.join(__dirname, 'audio');
 const LOG_FILE = path.join(__dirname, 'server.log');
+
+try {
+  const pythonProcess = spawn('python3', ['converter.py', input_path, output_path]);
+  pythonProcess.stdout.on('data', (data) => {
+    logMessage(`Python exec finish: ${data}`);
+  });
+} catch (e) {
+  logMessage('error: ', e);
+}
 
 if (!fs.existsSync(AUDIO_DIR)) {
   fs.mkdirSync(AUDIO_DIR);
@@ -50,7 +60,7 @@ wss.on('connection', (ws, req) => {
     if (session.fileStreamRAW) {
       session.fileStreamRAW.end();
       logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
-      convertRAWToWav(path.join(AUDIO_DIR, `${sessionId}.raw`),path.join(AUDIO_DIR, `${sessionId}.raw`),path.join(AUDIO_DIR, `${sessionId}.raw`));
+      convertRAWToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.raw`));
     }
 
     delete sessions[sessionId];
@@ -202,11 +212,10 @@ function handleClose(ws, msg) {
   logMessage('Closed enviado');
 }
 
-function convertRAWToWav(input_path, output_path){
+function convertRAWToWav(input_path, output_path) {
   logMessage('Enter convertRAWToWav');
-  const spawn = require("child_process").spawn;
-  const pythonProcess = spawn('python', ['converter.py',input_path,output_path]);
-  pythonProcess.stdout.on('data',(data) =>{
+  const pythonProcess = spawn('python', ['converter.py', input_path, output_path]);
+  pythonProcess.stdout.on('data', (data) => {
     logMessage(`Python exec finish: ${data}`);
   });
 }
