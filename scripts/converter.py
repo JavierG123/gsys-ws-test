@@ -3,7 +3,7 @@ import sys
 
 def convert_raw_to_wav(input_path, output_path):
 
-    print(f"Converting raw to WAV: {input_path} -> {output_path}")
+    print(f"Converting RAW to WAV: {input_path} -> {output_path}")
     sys.stdout.flush()
     # WAV file properties
     num_channels = 1  # Mono
