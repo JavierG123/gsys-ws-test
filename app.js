@@ -86,22 +86,6 @@ function handleMessage(ws, message) {
 
     const session = sessions[sessionId];
 
-
-    if (msg.serverseq === 3) {
-      // Ruta del archivo de audio
-      const audioFilePath = "HolaSoyElBot.wav";
-      //const audioFilePath = "RawFileExample.raw";
-      // Leer el archivo de audio
-      const audioData = fs.readFileSync(audioFilePath)
-      ws.send(audioData, (err) => {
-        if (err) {
-          logMessage(`Error enviando archivo de audio: ${err}`);
-        } else {
-          logMessage(`Archivo de audio enviado: ${audioFilePath}`);
-        }
-      });
-    }
-
     if (msg.serverseq === 6) {
       logMessage(`Serverseq: ${msg.serverseq} --- Probando disconnect`);
       const disconnect = {
@@ -121,20 +105,25 @@ function handleMessage(ws, message) {
       logMessage('Disconnect enviado');
     }
 
-    switch (msg.type) {
-      case 'open':
-        handleOpen(ws, msg);
-        break;
-      case 'ping':
-        handlePing(ws, msg);
-        break;
-      case 'close':
-        handleClose(ws, msg);
-        break;
-      case 'dtmf':
-        handleDTMF(ws, msg);
-      default:
-        logMessage(`Tipo de mensaje desconocido: ${msg.type} --- ${JSON.stringify(msg)}`);
+    if (msg.type.includes('playback')) {
+      handlePlayback(ws, msg);
+    } else {
+      switch (msg.type) {
+        case 'open':
+          handleOpen(ws, msg);
+          break;
+        case 'ping':
+          handlePing(ws, msg);
+          break;
+        case 'close':
+          handleClose(ws, msg);
+          break;
+        case 'dtmf':
+          handleDTMF(ws, msg);
+          break;
+        default:
+          logMessage(`Tipo de mensaje desconocido: ${msg.type} --- ${JSON.stringify(msg)}`);
+      }
     }
   } catch (err) {
     logMessage(`Error procesando mensaje: ${err}`);
@@ -150,6 +139,10 @@ function handleBinaryData(ws, data) {
   } else {
     logMessage('Datos binarios recibidos sin sesión activa.');
   }
+}
+
+function handlePlayback(ws, msg) {
+  logMessage(msg.type === 'playback_started' ? 'Playback Started' : 'Playback Completed');
 }
 
 function handleDTMF(ws, msg) {
@@ -196,6 +189,21 @@ function handlePing(ws, msg) {
 
   ws.send(JSON.stringify(pongResponse));
   logMessage('Pong enviado');
+
+  // Test send audio back
+  if (msg.serverseq === 3) {
+    // Ruta del archivo de audio
+    const audioFilePath = "HolaSoyElBot.wav";
+    // Leer el archivo de audio
+    const audioData = fs.readFileSync(audioFilePath)
+    ws.send(audioData, (err) => {
+      if (err) {
+        logMessage(`Error enviando archivo de audio: ${err}`);
+      } else {
+        logMessage(`Archivo de audio enviado: ${audioFilePath}`);
+      }
+    });
+  }
 }
 
 function handleClose(ws, msg) {
