@@ -104,9 +104,9 @@ function handleMessage(ws, message) {
         case 'dtmf':
           handleDTMF(ws, msg);
           break;
-          case 'paused':
-            handlePaused(ws, msg);
-            break;
+        case 'paused':
+          handlePaused(ws, msg);
+          break;
         default:
           logMessage(`Tipo de mensaje desconocido: ${msg.type} --- ${JSON.stringify(msg)}`);
       }
@@ -127,7 +127,7 @@ function handleBinaryData(ws, data) {
   }
 }
 
-function handlePaused(ws, msg){
+function handlePaused(ws, msg) {
   logMessage('Paused recibido');
 }
 
@@ -200,23 +200,33 @@ function handleClose(ws, msg) {
 }
 
 function convertRAWToWav(input_path, output_path) {
-  logMessage('Enter convertRAWToWav');
-  const pythonProcess = spawn('python3', ['converter.py', input_path, output_path]);
-  pythonProcess.stdout.on('data', (data) => {
-    logMessage(`Python exec finish: ${data.toString()}`);
-  });
-  pythonProcess.stderr.on('data', (error) => {
-    logMessage(`Python exec error: ${error.toString()}`);
-  });
-  pythonProcess.on('close', (code) => {
-    logMessage(`Python exec close: ${code}`);
-    if (code !== 0) {
-      logMessage(`Python process encountered an error: ${code}`);
-    }
+
+  return new Promise((resolve, reject) => {
+    logMessage('Enter convertRAWToWav');
+    const pythonProcess = spawn('python3', ['converter.py', input_path, output_path]);
+
+    pythonProcess.stdout.on('data', (data) => {
+      logMessage(`Python exec finish: ${data.toString()}`);
+    });
+
+    pythonProcess.stderr.on('data', (error) => {
+      logMessage(`Python exec error: ${error.toString()}`);
+    });
+
+    pythonProcess.on('close', (code) => {
+      logMessage(`Python exec close: ${code}`);
+      if (code !== 0) {
+        logMessage(`Python process encountered an error: ${code}`);
+        reject(`Error code: ${code}`);
+      } else {
+        resolve();
+      }
+    });
   });
 }
 
-function checkDuration(ws, msg) {
+async function checkDuration(ws, msg) {
+  const audioEnviado = false;
   const sessionId = msg.id;
   const session = sessions[sessionId];
   const match = msg.position.match(/(\d+(\.\d+)?)/);
@@ -241,13 +251,13 @@ function checkDuration(ws, msg) {
     if (session.fileStreamRAW) {
       session.fileStreamRAW.end();
       logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
-      convertRAWToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
+      await convertRAWToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
     }
     logMessage('Send back Audio to Genesys');
     sendAudio(ws, path.join(AUDIO_DIR, `${sessionId}.wav`));
-
-  } else if (duration >= 20.0 && duration < 25.5) {
-    logMessage('20 seg of transmition reached - Send Disconnect');
+    audioEnviado = true;
+  } else if (audioEnviado) {
+    logMessage('Audio Enviado - Send Disconnect');
     const disconnect = {
       version: '2',
       type: 'disconnect',
