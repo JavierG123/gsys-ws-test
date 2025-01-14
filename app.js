@@ -64,7 +64,7 @@ wss.on('connection', (ws, req) => {
     if (session.fileStreamRAW) {
       session.fileStreamRAW.end();
       logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
-      convertRAWToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.raw`));
+      convertRAWToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
     }
 
     delete sessions[sessionId];
@@ -132,7 +132,7 @@ function handleMessage(ws, message) {
         handleClose(ws, msg);
         break;
       case 'dtmf':
-        handleDTMF(wav, msg);
+        handleDTMF(ws, msg);
       default:
         logMessage(`Tipo de mensaje desconocido: ${msg.type} --- ${JSON.stringify(msg)}`);
     }
