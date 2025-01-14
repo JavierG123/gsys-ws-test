@@ -219,10 +219,11 @@ function convertRAWToWav(input_path, output_path) {
 function checkDuration(ws, msg) {
   const sessionId = msg.id;
   const session = sessions[sessionId];
-  if (msg.position.includes('10')) {
+  const duration = msg.position.match(/(\d+(\.\d+)?)/);
+  if (duration >= 10.0) {
     logMessage('10 seg of transmition reached - Send response');
     sendAudio(ws, 'HolaSoyElBot.wav');
-  } else if (msg.position.includes('15')) {
+  } else if (duration >= 15.0) {
     logMessage('15 seg of transmition reached');
     logMessage('Send Pause');
     const pause = {
@@ -244,7 +245,7 @@ function checkDuration(ws, msg) {
     logMessage('Send back Audio to Genesys');
     sendAudio(ws, path.join(AUDIO_DIR, `${sessionId}.wav`));
 
-  } else if (msg.position.includes('20')) {
+  } else if (duration >= 20.0) {
     logMessage('20 seg of transmition reached - Send Disconnect');
     const disconnect = {
       version: '2',
