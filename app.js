@@ -218,7 +218,7 @@ function handleClose(ws, msg) {
 
 function convertRAWToWav(input_path, output_path) {
   logMessage('Enter convertRAWToWav');
-  const pythonProcess = spawn('python', ['converter.py', input_path, output_path]);
+  const pythonProcess = spawn('python3', ['converter.py', input_path, output_path]);
   pythonProcess.stdout.on('data', (data) => {
     logMessage(`Python exec finish: ${data.toString()}`);
   });
