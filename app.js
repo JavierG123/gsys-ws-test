@@ -221,10 +221,10 @@ function checkDuration(ws, msg) {
   const session = sessions[sessionId];
   const match = msg.position.match(/(\d+(\.\d+)?)/);
   const duration = parseFloat(match[0]);
-  if (duration >= 10.0) {
+  if (duration >= 10.0 && duration < 14.99) {
     logMessage('10 seg of transmition reached - Send response');
     sendAudio(ws, 'HolaSoyElBot.wav');
-  } else if (duration >= 15.0) {
+  } else if (duration >= 15.0 && duration < 19.99) {
     logMessage('15 seg of transmition reached');
     logMessage('Send Pause');
     const pause = {
@@ -246,7 +246,7 @@ function checkDuration(ws, msg) {
     logMessage('Send back Audio to Genesys');
     sendAudio(ws, path.join(AUDIO_DIR, `${sessionId}.wav`));
 
-  } else if (duration >= 20.0) {
+  } else if (duration >= 20.0 && duration < 25.5) {
     logMessage('20 seg of transmition reached - Send Disconnect');
     const disconnect = {
       version: '2',
