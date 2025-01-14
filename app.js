@@ -219,7 +219,8 @@ function convertRAWToWav(input_path, output_path) {
 function checkDuration(ws, msg) {
   const sessionId = msg.id;
   const session = sessions[sessionId];
-  const duration = msg.position.match(/(\d+(\.\d+)?)/);
+  const match = msg.position.match(/(\d+(\.\d+)?)/);
+  const duration = parseFloat(match[0]);
   if (duration >= 10.0) {
     logMessage('10 seg of transmition reached - Send response');
     sendAudio(ws, 'HolaSoyElBot.wav');
