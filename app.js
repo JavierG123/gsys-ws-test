@@ -3,7 +3,6 @@ const WebSocket = require('ws');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { log } = require('console');
 const spawn = require("child_process").spawn;
 
 // Configuración del servidor

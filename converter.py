@@ -44,12 +44,12 @@ def convert_raw_to_wav(input_path, output_path):
 
     print(f"Converted to WAV: {output_path}")
     
-if sys.argv[2] == "test":
-   print("hola")
+if sys.argv[1] == "test":
+   print("Python file executed successfully")
    sys.stdout.flush()
 else:
     # Example usage
-    raw_file = sys.argv[1]  # Path to the raw file
-    wav_file = sys.argv[2]  # Path to save the WAV file
+    raw_file = sys.argv[0]  # Path to the raw file
+    wav_file = sys.argv[1]  # Path to save the WAV file
     convert_raw_to_wav(raw_file, wav_file)
     sys.stdout.flush()
