@@ -3,6 +3,7 @@ const WebSocket = require('ws');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { log } = require('console');
 const spawn = require("child_process").spawn;
 
 // Configuración del servidor
@@ -219,7 +220,16 @@ function convertRAWToWav(input_path, output_path) {
   logMessage('Enter convertRAWToWav');
   const pythonProcess = spawn('python', ['converter.py', input_path, output_path]);
   pythonProcess.stdout.on('data', (data) => {
-    logMessage(`Python exec finish: ${data}`);
+    logMessage(`Python exec finish: ${data.toString()}`);
+  });
+  pythonProcess.stderr.on('data', (error) => {
+    logMessage(`Python exec error: ${error.toString()}`);
+  });
+  pythonProcess.on('close', (code) => {
+    logMessage(`Python exec close: ${code}`);
+    if (code !== 0) {
+      logMessage(`Python process encountered an error: ${code}`);
+    }
   });
 }
 

@@ -3,6 +3,8 @@ import sys
 
 def convert_raw_to_wav(input_path, output_path):
 
+    print(f"Converting raw to WAV: {input_path} -> {output_path}")
+    sys.stdout.flush()
     # WAV file properties
     num_channels = 1  # Mono
     sample_rate = 8000  # Hz
@@ -43,6 +45,7 @@ def convert_raw_to_wav(input_path, output_path):
         wav_file.write(raw_data)
 
     print(f"Converted to WAV: {output_path}")
+    sys.stdout.flush()
     
 if sys.argv[1] == "test":
    print("Python file executed successfully")
@@ -52,4 +55,3 @@ else:
     raw_file = sys.argv[0]  # Path to the raw file
     wav_file = sys.argv[1]  # Path to save the WAV file
     convert_raw_to_wav(raw_file, wav_file)
-    sys.stdout.flush()
