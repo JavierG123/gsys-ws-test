@@ -254,8 +254,7 @@ async function checkDuration(ws, msg) {
       await convertRAWToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
     }
     logMessage('Send back Audio to Genesys');
-    sendAudio(ws, path.join(AUDIO_DIR, `${sessionId}.wav`));
-    audioEnviado = true;
+    audioEnviado = sendAudio(ws, path.join(AUDIO_DIR, `${sessionId}.wav`));
   } else if (audioEnviado) {
     logMessage('Audio Enviado - Send Disconnect');
     const disconnect = {
@@ -278,6 +277,7 @@ async function checkDuration(ws, msg) {
 
 
 function sendAudio(ws, audioFilePath) {
+  logMessage(`SendAudioFunction - ${audioFilePath}`);
   // Leer el archivo de audio
   const audioData = fs.readFileSync(audioFilePath)
   ws.send(audioData, (err) => {
@@ -285,6 +285,7 @@ function sendAudio(ws, audioFilePath) {
       logMessage(`Error enviando archivo de audio: ${err}`);
     } else {
       logMessage(`Archivo de audio enviado: ${audioFilePath}`);
+      return true;
     }
   });
 }
