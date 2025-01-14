@@ -226,7 +226,7 @@ function convertRAWToWav(input_path, output_path) {
 }
 
 async function checkDuration(ws, msg) {
-  const audioEnviado = false;
+  let audioEnviado = false;
   const sessionId = msg.id;
   const session = sessions[sessionId];
   const match = msg.position.match(/(\d+(\.\d+)?)/);
