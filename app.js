@@ -86,24 +86,7 @@ function handleMessage(ws, message) {
 
     const session = sessions[sessionId];
 
-    if (msg.serverseq === 6) {
-      logMessage(`Serverseq: ${msg.serverseq} --- Probando disconnect`);
-      const disconnect = {
-        version: '2',
-        type: 'disconnect',
-        seq: session.seq++,
-        clientseq: msg.seq,
-        id: sessionId,
-        parameters: {
-          reason: "completed",
-          outputVariables: {
-            OutputVariable: "Retorno del bot"
-          }
-        }
-      }
-      ws.send(JSON.stringify(disconnect));
-      logMessage('Disconnect enviado');
-    }
+    checkDuration(ws, msg);
 
     if (msg.type.includes('playback')) {
       handlePlayback(ws, msg);
@@ -121,6 +104,9 @@ function handleMessage(ws, message) {
         case 'dtmf':
           handleDTMF(ws, msg);
           break;
+          case 'paused':
+            handlePaused(ws, msg);
+            break;
         default:
           logMessage(`Tipo de mensaje desconocido: ${msg.type} --- ${JSON.stringify(msg)}`);
       }
@@ -139,6 +125,10 @@ function handleBinaryData(ws, data) {
   } else {
     logMessage('Datos binarios recibidos sin sesión activa.');
   }
+}
+
+function handlePaused(ws, msg){
+  logMessage('Paused recibido');
 }
 
 function handlePlayback(ws, msg) {
@@ -189,21 +179,6 @@ function handlePing(ws, msg) {
 
   ws.send(JSON.stringify(pongResponse));
   logMessage('Pong enviado');
-
-  // Test send audio back
-  if (msg.serverseq === 3) {
-    // Ruta del archivo de audio
-    const audioFilePath = "HolaSoyElBot.wav";
-    // Leer el archivo de audio
-    const audioData = fs.readFileSync(audioFilePath)
-    ws.send(audioData, (err) => {
-      if (err) {
-        logMessage(`Error enviando archivo de audio: ${err}`);
-      } else {
-        logMessage(`Archivo de audio enviado: ${audioFilePath}`);
-      }
-    });
-  }
 }
 
 function handleClose(ws, msg) {
@@ -237,6 +212,67 @@ function convertRAWToWav(input_path, output_path) {
     logMessage(`Python exec close: ${code}`);
     if (code !== 0) {
       logMessage(`Python process encountered an error: ${code}`);
+    }
+  });
+}
+
+function checkDuration(ws, msg) {
+  const sessionId = msg.id;
+  const session = sessions[sessionId];
+  if (msg.position.includes('10')) {
+    logMessage('10 seg of transmition reached - Send response');
+    sendAudio(ws, 'HolaSoyElBot.wav');
+  } else if (msg.position.includes('15')) {
+    logMessage('15 seg of transmition reached');
+    logMessage('Send Pause');
+    const pause = {
+      version: '2',
+      type: 'pause',
+      seq: session.seq++,
+      clientseq: msg.seq,
+      id: sessionId,
+      parameters: {}
+    }
+    ws.send(JSON.stringify(pause));
+    logMessage('Pause enviado');
+    logMessage('Save Raw File and convert to Wav')
+    if (session.fileStreamRAW) {
+      session.fileStreamRAW.end();
+      logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
+      convertRAWToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
+    }
+    logMessage('Send back Audio to Genesys');
+    sendAudio(ws, path.join(AUDIO_DIR, `${sessionId}.wav`));
+
+  } else if (msg.position.includes('20')) {
+    logMessage('20 seg of transmition reached - Send Disconnect');
+    const disconnect = {
+      version: '2',
+      type: 'disconnect',
+      seq: session.seq++,
+      clientseq: msg.seq,
+      id: sessionId,
+      parameters: {
+        reason: "completed",
+        outputVariables: {
+          OutputVariable: "Retorno del bot"
+        }
+      }
+    }
+    ws.send(JSON.stringify(disconnect));
+    logMessage('Disconnect enviado');
+  }
+}
+
+
+function sendAudio(ws, audioFilePath) {
+  // Leer el archivo de audio
+  const audioData = fs.readFileSync(audioFilePath)
+  ws.send(audioData, (err) => {
+    if (err) {
+      logMessage(`Error enviando archivo de audio: ${err}`);
+    } else {
+      logMessage(`Archivo de audio enviado: ${audioFilePath}`);
     }
   });
 }
