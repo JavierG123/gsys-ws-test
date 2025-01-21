@@ -280,30 +280,56 @@ function convertRAWToWav(input_path, output_path) {
 }
 
 function sendAudio(ws, audioFilePath) {
-  logMessage(`SendAudioFunction - ${ audioFilePath }`);
-  const CHUNK_SIZE = 16 * 1024; // 16 KB
+  logMessage(`SendAudioFunction - ${audioFilePath}`);
+  const CHUNK_SIZE = 16 * 1024; // Tamaño del fragmento (16 KB)
+  const MAX_BURST = 24; // Límite de mensajes binarios por ráfaga
+  const BURST_INTERVAL = 100; // Tiempo entre ráfagas (en milisegundos)
+
   const readStream = fs.createReadStream(audioFilePath, { highWaterMark: CHUNK_SIZE });
+  let bufferQueue = []; // Cola de fragmentos a enviar
+  let burstCount = 0; // Contador de fragmentos enviados en la ráfaga actual
+
+  const sendNextBurst = () => {
+    // Envía hasta MAX_BURST fragmentos de la cola
+    while (burstCount < MAX_BURST && bufferQueue.length > 0) {
+      const chunk = bufferQueue.shift(); // Obtén el siguiente fragmento
+      if (ws.readyState === ws.OPEN) {
+        ws.send(chunk, (err) => {
+          if (err) {
+            logMessage(`Error enviando fragmento: ${err}`);
+            readStream.destroy(); // Detén el stream si ocurre un error
+          }
+        });
+      } else {
+        logMessage('Conexión WebSocket cerrada durante el envío.');
+        readStream.destroy();
+        return;
+      }
+      burstCount++;
+    }
+
+    // Reinicia el contador y programa el siguiente envío si hay más datos
+    if (bufferQueue.length > 0) {
+      burstCount = 0;
+      setTimeout(sendNextBurst, BURST_INTERVAL);
+    }
+  };
 
   readStream.on('data', (chunk) => {
-    if (ws.readyState === ws.OPEN) {
-      ws.send(chunk, (err) => {
-        if (err) {
-          logMessage(`Error enviando fragmento: ${ err }`);
-          readStream.destroy(); // Detén el stream si ocurre un error
-        }
-      });
-    } else {
-      logMessage('Conexión WebSocket cerrada durante el envío.');
-      readStream.destroy();
+    bufferQueue.push(chunk); // Agrega el fragmento a la cola
+
+    // Inicia el envío si no hay otro en curso
+    if (burstCount === 0) {
+      sendNextBurst();
     }
   });
 
   readStream.on('end', () => {
-    logMessage(`Archivo de audio enviado: ${ audioFilePath }`);
+    logMessage(`Archivo de audio enviado: ${audioFilePath}`);
   });
 
   readStream.on('error', (err) => {
-    logMessage(`Error leyendo el archivo de audio: ${ err }`);
+    logMessage(`Error leyendo el archivo de audio: ${err}`);
   });
 }
 
