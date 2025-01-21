@@ -94,6 +94,8 @@ function handleMessage(ws, message) {
         case 'paused':
           handlePaused(ws, msg);
           break;
+        case 'resumed':
+          handleResumed(ws, msg);
         default:
           logMessage(`Tipo de mensaje desconocido: ${msg.type} --- ${JSON.stringify(msg)}`);
       }
@@ -101,6 +103,13 @@ function handleMessage(ws, message) {
   } catch (err) {
     logMessage(`Error procesando mensaje: ${err}`);
   }
+}
+
+function handleResumed(ws, data){
+  const sessionId = msg.id;
+  const session = sessions[sessionId];
+  logMessage('Send back Audio to Genesys');
+  sendAudio(ws, path.join(AUDIO_DIR, `${sessionId}.wav`));
 }
 
 function handleBinaryData(ws, data) {
@@ -151,8 +160,17 @@ async function handleDTMF(ws, msg) {
     }
   }
   if (dtmf === '4') {
-    logMessage('Send back Audio to Genesys');
-    sendAudio(ws, path.join(AUDIO_DIR, `${sessionId}.wav`));
+    logMessage('Send resume');
+    const resume = {
+      version: '2',
+      type: 'resume',
+      seq: session.seq++,
+      clientseq: msg.seq,
+      id: sessionId,
+      parameters: {}
+    }
+    ws.send(JSON.stringify(resume));
+    logMessage('resume enviado');
   }
   if (dtmf === '5') {
     const disconnect = {
