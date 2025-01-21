@@ -105,7 +105,7 @@ function handleMessage(ws, message) {
   }
 }
 
-function handleResumed(ws, data){
+function handleResumed(ws, msg){
   const sessionId = msg.id;
   const session = sessions[sessionId];
   logMessage('Send back Audio to Genesys');
