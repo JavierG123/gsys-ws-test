@@ -96,6 +96,7 @@ function handleMessage(ws, message) {
           break;
         case 'resumed':
           handleResumed(ws, msg);
+          break;
         default:
           logMessage(`Tipo de mensaje desconocido: ${msg.type} --- ${JSON.stringify(msg)}`);
       }
@@ -106,6 +107,7 @@ function handleMessage(ws, message) {
 }
 
 function handleResumed(ws, msg){
+  logMessage('Resumed recibido')
   const sessionId = msg.id;
   const session = sessions[sessionId];
   logMessage('Send back Audio to Genesys');
@@ -137,7 +139,7 @@ async function handleDTMF(ws, msg) {
   const dtmf = msg.parameters.digit
   logMessage(`DTMF recibido: ${dtmf}`);
   if (dtmf === '1') {
-    sendAudio(ws, 'HolaSoyElBot.wav');
+    sendAudio(ws, 'Test.wav');
   }
   if (dtmf === '2') {
     logMessage('Send Pause');
@@ -170,7 +172,7 @@ async function handleDTMF(ws, msg) {
       parameters: {}
     }
     ws.send(JSON.stringify(resume));
-    logMessage('resume enviado');
+    logMessage('Resume enviado');
   }
   if (dtmf === '5') {
     const disconnect = {
