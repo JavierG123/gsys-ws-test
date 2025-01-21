@@ -18,6 +18,7 @@ function tryPython() {
   });
 }
 
+tryPython();
 
 if (!fs.existsSync(AUDIO_DIR)) {
   fs.mkdirSync(AUDIO_DIR);
@@ -27,10 +28,6 @@ const app = express();
 const server = app.listen(PORT, () => {
   logMessage(`Servidor HTTP escuchando en puerto ${PORT}`);
 });
-
-logMessage('Call tryPython');
-tryPython();
-logMessage('After call tryPython');
 
 const wss = new WebSocket.Server({ server });
 
@@ -60,15 +57,7 @@ wss.on('connection', (ws, req) => {
     logMessage('Conexión WebSocket cerrada');
     const sessionId = Object.keys(sessions).find(id => sessions[id].ws === ws);
     const session = sessions[sessionId];
-    // Cerrar el archivo y eliminar la sesión
-    if (session.fileStreamRAW) {
-      session.fileStreamRAW.end();
-      logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
-      convertRAWToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
-    }
-
-    delete sessions[sessionId];
-
+    delete session;
   });
 });
 
@@ -85,8 +74,6 @@ function handleMessage(ws, message) {
     }
 
     const session = sessions[sessionId];
-
-    checkDuration(ws, msg);
 
     if (msg.type.includes('playback')) {
       handlePlayback(ws, msg);
@@ -135,9 +122,55 @@ function handlePlayback(ws, msg) {
   logMessage(msg.type === 'playback_started' ? 'Playback Started' : 'Playback Completed');
 }
 
-function handleDTMF(ws, msg) {
-  logMessage('DTMF recibido');
-  logMessage(`DTMF: ${msg.parameters.digit}`);
+async function handleDTMF(ws, msg) {
+  const sessionId = msg.id;
+  const session = sessions[sessionId];
+  const dtmf = msg.parameters.digit
+  logMessage(`DTMF recibido: ${dtmf}`);
+  if (dtmf === '1') {
+    sendAudio(ws, 'HolaSoyElBot.wav');
+  }
+  if (dtmf === '2') {
+    logMessage('Send Pause');
+    const pause = {
+      version: '2',
+      type: 'pause',
+      seq: session.seq++,
+      clientseq: msg.seq,
+      id: sessionId,
+      parameters: {}
+    }
+    ws.send(JSON.stringify(pause));
+    logMessage('Pause enviado');
+  }
+  if (dtmf === '3') {
+    if (session.fileStreamRAW) {
+      session.fileStreamRAW.end();
+      logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
+      await convertRAWToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
+    }
+  }
+  if (dtmf === '4') {
+    logMessage('Send back Audio to Genesys');
+    sendAudio(ws, path.join(AUDIO_DIR, `${sessionId}.wav`));
+  }
+  if (dtmf === '5') {
+    const disconnect = {
+      version: '2',
+      type: 'disconnect',
+      seq: session.seq++,
+      clientseq: msg.seq,
+      id: sessionId,
+      parameters: {
+        reason: "completed",
+        outputVariables: {
+          OutputVariable: "Retorno del bot"
+        }
+      }
+    }
+    ws.send(JSON.stringify(disconnect));
+    logMessage('Disconnect enviado');
+  }
 }
 
 
@@ -199,6 +232,7 @@ function handleClose(ws, msg) {
   logMessage('Closed enviado');
 }
 
+// Funcion para convertir el raw a wav
 function convertRAWToWav(input_path, output_path) {
 
   return new Promise((resolve, reject) => {
@@ -225,57 +259,6 @@ function convertRAWToWav(input_path, output_path) {
   });
 }
 
-async function checkDuration(ws, msg) {
-  let audioEnviado = false;
-  const sessionId = msg.id;
-  const session = sessions[sessionId];
-  const match = msg.position.match(/(\d+(\.\d+)?)/);
-  const duration = parseFloat(match[0]);
-  if (duration >= 10.0 && duration < 14.99) {
-    logMessage('10 seg of transmition reached - Send response');
-    sendAudio(ws, 'HolaSoyElBot.wav');
-  } else if (duration >= 15.0 && duration < 19.99) {
-    logMessage('15 seg of transmition reached');
-    logMessage('Send Pause');
-    const pause = {
-      version: '2',
-      type: 'pause',
-      seq: session.seq++,
-      clientseq: msg.seq,
-      id: sessionId,
-      parameters: {}
-    }
-    ws.send(JSON.stringify(pause));
-    logMessage('Pause enviado');
-    logMessage('Save Raw File and convert to Wav')
-    if (session.fileStreamRAW) {
-      session.fileStreamRAW.end();
-      logMessage(`Archivo RAW guardado en ${path.join(AUDIO_DIR, `${sessionId}.raw --- ${sessionId}`)}`);
-      await convertRAWToWav(path.join(AUDIO_DIR, `${sessionId}.raw`), path.join(AUDIO_DIR, `${sessionId}.wav`));
-    }
-    logMessage('Send back Audio to Genesys');
-    audioEnviado = sendAudio(ws, path.join(AUDIO_DIR, `${sessionId}.wav`));
-  } else if (audioEnviado) {
-    logMessage('Audio Enviado - Send Disconnect');
-    const disconnect = {
-      version: '2',
-      type: 'disconnect',
-      seq: session.seq++,
-      clientseq: msg.seq,
-      id: sessionId,
-      parameters: {
-        reason: "completed",
-        outputVariables: {
-          OutputVariable: "Retorno del bot"
-        }
-      }
-    }
-    ws.send(JSON.stringify(disconnect));
-    logMessage('Disconnect enviado');
-  }
-}
-
-
 function sendAudio(ws, audioFilePath) {
   logMessage(`SendAudioFunction - ${audioFilePath}`);
   // Leer el archivo de audio
@@ -290,7 +273,7 @@ function sendAudio(ws, audioFilePath) {
   });
 }
 
-// Endpoint para descargar audio
+// Endpoint para descargar audio convertido wav
 app.get('/archivo/:id', (req, res) => {
   const audioFilePath = path.join(AUDIO_DIR, `${req.params.id}.wav`);
   if (fs.existsSync(audioFilePath)) {
@@ -300,6 +283,8 @@ app.get('/archivo/:id', (req, res) => {
   }
 });
 
+
+// Endpoing para descargar el archivo binario raw
 app.get('/raw/:id', (req, res) => {
   const audioFilePath = path.join(AUDIO_DIR, `${req.params.id}.raw`);
   if (fs.existsSync(audioFilePath)) {
