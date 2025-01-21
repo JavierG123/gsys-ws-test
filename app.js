@@ -139,7 +139,7 @@ async function handleDTMF(ws, msg) {
   const dtmf = msg.parameters.digit
   logMessage(`DTMF recibido: ${dtmf}`);
   if (dtmf === '1') {
-    sendAudio(ws, 'Test.wav');
+    sendAudio(ws, 'file_example_WAV_5MG.wav');
   }
   if (dtmf === '2') {
     logMessage('Send Pause');
