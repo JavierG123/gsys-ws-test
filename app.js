@@ -106,7 +106,7 @@ function handleMessage(ws, message) {
   }
 }
 
-function handleResumed(ws, msg){
+function handleResumed(ws, msg) {
   logMessage('Resumed recibido')
   const sessionId = msg.id;
   const session = sessions[sessionId];
@@ -280,16 +280,30 @@ function convertRAWToWav(input_path, output_path) {
 }
 
 function sendAudio(ws, audioFilePath) {
-  logMessage(`SendAudioFunction - ${audioFilePath}`);
-  // Leer el archivo de audio
-  const audioData = fs.readFileSync(audioFilePath)
-  ws.send(audioData, (err) => {
-    if (err) {
-      logMessage(`Error enviando archivo de audio: ${err}`);
+  logMessage(`SendAudioFunction - ${ audioFilePath }`);
+  const CHUNK_SIZE = 16 * 1024; // 16 KB
+  const readStream = fs.createReadStream(audioFilePath, { highWaterMark: CHUNK_SIZE });
+
+  readStream.on('data', (chunk) => {
+    if (ws.readyState === ws.OPEN) {
+      ws.send(chunk, (err) => {
+        if (err) {
+          logMessage(`Error enviando fragmento: ${ err }`);
+          readStream.destroy(); // Detén el stream si ocurre un error
+        }
+      });
     } else {
-      logMessage(`Archivo de audio enviado: ${audioFilePath}`);
-      return true;
+      logMessage('Conexión WebSocket cerrada durante el envío.');
+      readStream.destroy();
     }
+  });
+
+  readStream.on('end', () => {
+    logMessage(`Archivo de audio enviado: ${ audioFilePath }`);
+  });
+
+  readStream.on('error', (err) => {
+    logMessage(`Error leyendo el archivo de audio: ${ err }`);
   });
 }
 
